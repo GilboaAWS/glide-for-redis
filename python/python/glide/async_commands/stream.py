@@ -258,7 +258,7 @@ class StreamReadOptions:
         Returns:
             List[str]: The options as a list of arguments for the `XREAD` command.
         """
-        args = []
+        args: List[Union[str, bytes]] = []
         if self.block_ms is not None:
             args.extend([self.READ_BLOCK_REDIS_API, str(self.block_ms)])
 
@@ -325,14 +325,14 @@ class StreamReadGroupOptions(StreamReadOptions):
         super().__init__(block_ms=block_ms, count=count)
         self.no_ack = no_ack
 
-    def to_args(self) -> List[str]:
+    def to_args(self) -> List[Union[str, bytes]]:
         """
         Returns the options as a list of string arguments to be used in the `XREADGROUP` command.
 
         Returns:
             List[str]: The options as a list of arguments for the `XREADGROUP` command.
         """
-        args = super().to_args()
+        args: List[Union[str, bytes]] = super().to_args()
         if self.no_ack:
             args.append(self.READ_NOACK_REDIS_API)
 
