@@ -51,7 +51,9 @@ class StandaloneCommands(CoreCommands):
         Returns:
             bytes: Returns bytes containing the information for the sections requested.
         """
-        args = [section.value for section in sections] if sections else []
+        args: List[TEncodable] = (
+            [section.value for section in sections] if sections else []
+        )
         return cast(bytes, await self._execute_command(RequestType.Info, args))
 
     async def exec(
@@ -158,7 +160,7 @@ class StandaloneCommands(CoreCommands):
             {b'timeout': b'1000', b'maxmemory': b'1GB'}
         """
         return cast(
-            Dict[str, str],
+            Dict[bytes, bytes],
             await self._execute_command(RequestType.ConfigGet, parameters),
         )
 
@@ -531,7 +533,7 @@ class StandaloneCommands(CoreCommands):
              >>> await client.flushall(FlushMode.ASYNC)
                  OK  # This command never fails.
         """
-        args = []
+        args: List[TEncodable] = []
         if flush_mode is not None:
             args.append(flush_mode.value)
 
@@ -558,7 +560,7 @@ class StandaloneCommands(CoreCommands):
              >>> await client.flushdb(FlushMode.ASYNC)
                  OK  # The keys of the currently selected database were deleted asynchronously.
         """
-        args = []
+        args: List[TEncodable] = []
         if flush_mode is not None:
             args.append(flush_mode.value)
 
@@ -601,7 +603,7 @@ class StandaloneCommands(CoreCommands):
 
         Since: Redis version 6.2.0.
         """
-        args = [source, destination]
+        args: List[TEncodable] = [source, destination]
         if destinationDB is not None:
             args.extend(["DB", str(destinationDB)])
         if replace is True:
@@ -636,7 +638,7 @@ class StandaloneCommands(CoreCommands):
             >>> await client.lolwut(5, [30, 5, 5]);
             "Redis ver. 7.2.3" # Indicates the current Redis version
         """
-        args = []
+        args: List[TEncodable] = []
         if version is not None:
             args.extend(["VERSION", str(version)])
         if parameters:
@@ -689,7 +691,7 @@ class StandaloneCommands(CoreCommands):
             >>> await client.wait(1, 1000);
             // return 1 when a replica is reached or 0 if 1000ms is reached.
         """
-        args = [str(numreplicas), str(timeout)]
+        args: List[TEncodable] = [str(numreplicas), str(timeout)]
         return cast(
             int,
             await self._execute_command(RequestType.Wait, args),

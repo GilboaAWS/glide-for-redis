@@ -62,7 +62,9 @@ class ClusterCommands(CoreCommands):
             the required sections. Otherwise, returns a dict of bytes strings, with each key containing the address of
             the queried node and value containing the information regarding the requested sections.
         """
-        args = [section.value for section in sections] if sections else []
+        args: List[TEncodable] = (
+            [section.value for section in sections] if sections else []
+        )
         return cast(
             TClusterResponse[bytes],
             await self._execute_command(RequestType.Info, args, route),
@@ -445,7 +447,7 @@ class ClusterCommands(CoreCommands):
 
         Since: Redis version 7.0.0.
         """
-        args = [function, "0"]
+        args: List[TEncodable] = [function, "0"]
         if arguments is not None:
             args.extend(arguments)
         return cast(
@@ -647,7 +649,7 @@ class ClusterCommands(CoreCommands):
              >>> await client.flushall(FlushMode.ASYNC, AllNodes())
                  OK  # This command never fails.
         """
-        args = []
+        args: List[TEncodable] = []
         if flush_mode is not None:
             args.append(flush_mode.value)
 
@@ -680,7 +682,7 @@ class ClusterCommands(CoreCommands):
              >>> await client.flushdb(FlushMode.ASYNC, AllNodes())
                  OK  # The keys of the currently selected database were deleted asynchronously on all nodes.
         """
-        args = []
+        args: List[TEncodable] = []
         if flush_mode is not None:
             args.append(flush_mode.value)
 
@@ -721,7 +723,7 @@ class ClusterCommands(CoreCommands):
 
         Since: Redis version 6.2.0.
         """
-        args = [source, destination]
+        args: List[TEncodable] = [source, destination]
         if replace is True:
             args.append("REPLACE")
         return cast(
@@ -755,7 +757,7 @@ class ClusterCommands(CoreCommands):
             >>> await client.lolwut(6, [40, 20], ALL_NODES);
             "Redis ver. 7.2.3" # Indicates the current Redis version
         """
-        args = []
+        args: List[TEncodable] = []
         if version is not None:
             args.extend(["VERSION", str(version)])
         if parameters:
@@ -814,7 +816,7 @@ class ClusterCommands(CoreCommands):
             >>> await client.wait(1, 1000);
             // return 1 when a replica is reached or 0 if 1000ms is reached.
         """
-        args = [str(numreplicas), str(timeout)]
+        args: List[TEncodable] = [str(numreplicas), str(timeout)]
         return cast(
             int,
             await self._execute_command(RequestType.Wait, args, route),

@@ -293,9 +293,9 @@ class BaseClient(CoreCommands):
 
     async def _execute_script(
         self,
-        hash: TEncodable,
-        keys: Optional[List[TEncodable]] = None,
-        args: Optional[List[TEncodable]] = None,
+        hash: str,
+        keys: Optional[List[str]] = None,
+        args: Optional[List[str]] = None,
         route: Optional[Route] = None,
     ) -> TResult:
         if self._is_closed:
