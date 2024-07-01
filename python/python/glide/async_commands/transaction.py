@@ -74,7 +74,7 @@ class BaseTransaction:
     """
 
     def __init__(self) -> None:
-        self.commands: List[Tuple[RequestType.ValueType, List[str]]] = []
+        self.commands: List[Tuple[RequestType.ValueType, List[TEncodable]]] = []
         self.lock = threading.Lock()
 
     def append_command(
@@ -290,7 +290,9 @@ class BaseTransaction:
         Command response:
             bytes: Returns a string containing the information for the sections requested.
         """
-        args = [section.value for section in sections] if sections else []
+        args: List[TEncodable] = (
+            [section.value for section in sections] if sections else []
+        )
         return self.append_command(RequestType.Info, args)
 
     def delete(self: TTransaction, keys: List[TEncodable]) -> TTransaction:
@@ -865,11 +867,12 @@ class BaseTransaction:
         Command response:
             int: The length of the list after the push operations.
         """
-        key = key.encode() if isinstance(key, str) else key
         elements = [
             elem.encode() if isinstance(elem, str) else elem for elem in elements
         ]
-        return self.append_command(RequestType.LPush, [key] + elements)
+        args: List[TEncodable] = [key]
+        args.extend(elements)
+        return self.append_command(RequestType.LPush, args)
 
     def lpushx(
         self: TTransaction, key: TEncodable, elements: List[TEncodable]
@@ -1481,10 +1484,10 @@ class BaseTransaction:
         Command response:
             int: The number of elements in the resulting set of the intersection.
         """
-        args = [str(len(keys))]
-        args += keys
+        args: List[TEncodable] = [str(len(keys))]
+        args.extend(keys)
         if limit is not None:
-            args += ["LIMIT", str(limit)]
+            args.extend(["LIMIT", str(limit)])
         return self.append_command(RequestType.SInterCard, args)
 
     def sdiff(self: TTransaction, keys: List[TEncodable]) -> TTransaction:
@@ -3363,7 +3366,9 @@ class BaseTransaction:
                 If the first key does not exist, it is treated as an empty sorted set, and the command returns an
                 empty list.
         """
-        return self.append_command(RequestType.ZDiff, [str(len(keys))] + keys)
+        args: List[TEncodable] = [str(len(keys))]
+        args.extend(keys)
+        return self.append_command(RequestType.ZDiff, args)
 
     def zdiff_withscores(self: TTransaction, keys: List[TEncodable]) -> TTransaction:
         """
@@ -3421,7 +3426,9 @@ class BaseTransaction:
         Command response:
             List[bytes]: The resulting array of intersecting elements.
         """
-        return self.append_command(RequestType.ZInter, [str(len(keys))] + keys)
+        args: List[TEncodable] = [str(len(keys))]
+        args.extend(keys)
+        return self.append_command(RequestType.ZInter, args)
 
     def zinter_withscores(
         self: TTransaction,
@@ -3490,7 +3497,9 @@ class BaseTransaction:
         Command response:
             List[bytes]: The resulting array of union elements.
         """
-        return self.append_command(RequestType.ZUnion, [str(len(keys))] + keys)
+        args: List[TEncodable] = [str(len(keys))]
+        args.extend(keys)
+        return self.append_command(RequestType.ZUnion, args)
 
     def zunion_withscores(
         self: TTransaction,
@@ -3790,9 +3799,9 @@ class BaseTransaction:
                 If `options` is not provided, returns the number of set bits in the string stored at `key`.
                 Otherwise, if `key` is missing, returns `0` as it is treated as an empty string.
         """
-        args = [key]
+        args: List[TEncodable] = [key]
         if options is not None:
-            args = args + options.to_args()
+            args.extend(options.to_args())
 
         return self.append_command(RequestType.BitCount, args)
 
@@ -4083,7 +4092,7 @@ class BaseTransaction:
         Command Response:
             TOK: OK.
         """
-        args = []
+        args: List[TEncodable] = []
         if flush_mode is not None:
             args.append(flush_mode.value)
         return self.append_command(RequestType.FlushAll, args)
@@ -4102,7 +4111,7 @@ class BaseTransaction:
         Command Response:
             TOK: OK.
         """
-        args = []
+        args: List[TEncodable] = []
         if flush_mode is not None:
             args.append(flush_mode.value)
         return self.append_command(RequestType.FlushDB, args)
@@ -4126,7 +4135,7 @@ class BaseTransaction:
 
         Since: Redis version 6.2.0.
         """
-        args = [key]
+        args: List[TEncodable] = [key]
         if expiry is not None:
             args.extend(expiry.get_cmd_args())
         return self.append_command(RequestType.GetEx, args)
@@ -4150,7 +4159,7 @@ class BaseTransaction:
         Command Response:
             str: A piece of generative computer art along with the current Redis version.
         """
-        args = []
+        args: List[TEncodable] = []
         if version is not None:
             args.extend(["VERSION", str(version)])
         if parameters:
@@ -4411,7 +4420,7 @@ class BaseTransaction:
         Command Response:
             str: The number of replicas reached by all the writes performed in the context of the current connection.
         """
-        args = [str(numreplicas), str(timeout)]
+        args: List[TEncodable] = [str(numreplicas), str(timeout)]
         return self.append_command(RequestType.Wait, args)
 
 
