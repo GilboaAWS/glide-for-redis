@@ -77,7 +77,9 @@ class BaseTransaction:
         self.lock = threading.Lock()
 
     def append_command(
-        self: TTransaction, request_type: RequestType.ValueType, args: List[str]
+        self: TTransaction,
+        request_type: RequestType.ValueType,
+        args: List[Union[str, bytes]],
     ) -> TTransaction:
         self.lock.acquire()
         try:
@@ -90,34 +92,36 @@ class BaseTransaction:
         with self.lock:
             self.commands.clear()
 
-    def get(self: TTransaction, key: str) -> TTransaction:
+    def get(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Get the value associated with the given key, or null if no such value exists.
         See https://redis.io/commands/get/ for details.
 
         Args:
-            key (str): The key to retrieve from the database.
+            key (Union[str, bytes]): The key to retrieve from the database.
 
         Command response:
-            Optional[str]: If the key exists, returns the value of the key as a string. Otherwise, return None.
+            Optional[bytes]: If the key exists, returns the value of the key as a byte string. Otherwise, return None.
         """
         return self.append_command(RequestType.Get, [key])
 
-    def getdel(self: TTransaction, key: str) -> TTransaction:
+    def getdel(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Gets a string value associated with the given `key` and deletes the key.
 
         See https://valkey.io/commands/getdel for more details.
 
         Args:
-            key (str): The `key` to retrieve from the database.
+            key (Union[str, bytes]): The `key` to retrieve from the database.
 
         Command response:
-            Optional[str]: If `key` exists, returns the `value` of `key`. Otherwise, returns `None`.
+            Optional[bytes]: If `key` exists, returns the `value` of `key`. Otherwise, returns `None`.
         """
         return self.append_command(RequestType.GetDel, [key])
 
-    def getrange(self: TTransaction, key: str, start: int, end: int) -> TTransaction:
+    def getrange(
+        self: TTransaction, key: Union[str, bytes], start: int, end: int
+    ) -> TTransaction:
         """
         Returns the substring of the string value stored at `key`, determined by the offsets `start` and `end` (both are inclusive).
         Negative offsets can be used in order to provide an offset starting from the end of the string.
@@ -129,19 +133,19 @@ class BaseTransaction:
         See https://valkey.io/commands/getrange/ for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             start (int): The starting offset.
             end (int): The ending offset.
 
         Commands response:
-            str: A substring extracted from the value stored at `key`.
+            bytes: A substring extracted from the value stored at `key`.
         """
         return self.append_command(RequestType.GetRange, [key, str(start), str(end)])
 
     def set(
         self: TTransaction,
-        key: str,
-        value: str,
+        key: Union[str, bytes],
+        value: Union[str, bytes],
         conditional_set: Union[ConditionalChange, None] = None,
         expiry: Union[ExpirySet, None] = None,
         return_old_value: bool = False,
@@ -155,8 +159,8 @@ class BaseTransaction:
                 connection.set("foo", "bar", conditional_set=ConditionalChange.ONLY_IF_EXISTS, expiry=Expiry(ExpiryType.SEC, 5))
 
         Args:
-            key (str): the key to store.
-            value (str): the value to store with the given key.
+            key (Union[str, bytes]): the key to store.
+            value (Union[str, bytes]): the value to store with the given key.
             conditional_set (Optional[ConditionalChange], optional): set the key only if the given condition is met.
                 Equivalent to [`XX` | `NX`] in the Redis API. Defaults to None.
             expiry (Optional[ExpirySet], optional): set expiriation to the given key.
@@ -166,10 +170,10 @@ class BaseTransaction:
                 Equivalent to `GET` in the Redis API. Defaults to False.
 
         Command response:
-            Optional[str]:
+            Optional[bytes]:
                 If the value is successfully set, return OK.
                 If value isn't set because of only_if_exists or only_if_does_not_exist conditions, return None.
-                If return_old_value is set, return the old value as a string.
+                If return_old_value is set, return the old value as a byte string.
         """
         args = [key, value]
         if conditional_set:
@@ -183,13 +187,13 @@ class BaseTransaction:
             args.extend(expiry.get_cmd_args())
         return self.append_command(RequestType.Set, args)
 
-    def strlen(self: TTransaction, key: str) -> TTransaction:
+    def strlen(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Get the length of the string value stored at `key`.
         See https://redis.io/commands/strlen/ for more details.
 
         Args:
-            key (str): The key to return its length.
+            key (Union[str, bytes]): The key to return its length.
 
         Commands response:
             int: The length of the string value stored at `key`.
@@ -197,39 +201,45 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.Strlen, [key])
 
-    def rename(self: TTransaction, key: str, new_key: str) -> TTransaction:
+    def rename(
+        self: TTransaction, key: Union[str, bytes], new_key: Union[str, bytes]
+    ) -> TTransaction:
         """
         Renames `key` to `new_key`.
-        If `newkey` already exists it is overwritten.
-        In Cluster mode, both `key` and `newkey` must be in the same hash slot,
+        If `new_key` already exists it is overwritten.
+        In Cluster mode, both `key` and `new_key` must be in the same hash slot,
         meaning that in practice only keys that have the same hash tag can be reliably renamed in cluster.
         See https://redis.io/commands/rename/ for more details.
 
         Args:
-            key (str) : The key to rename.
-            new_key (str) : The new name of the key.
+            key (Union[str, bytes]) : The key to rename.
+            new_key (Union[str, bytes]) : The new name of the key.
 
         Command response:
             OK: If the `key` was successfully renamed, return "OK". If `key` does not exist, the transaction fails with an error.
         """
         return self.append_command(RequestType.Rename, [key, new_key])
 
-    def renamenx(self: TTransaction, key: str, new_key: str) -> TTransaction:
+    def renamenx(
+        self: TTransaction, key: Union[str, bytes], new_key: Union[str, bytes]
+    ) -> TTransaction:
         """
         Renames `key` to `new_key` if `new_key` does not yet exist.
 
         See https://valkey.io/commands/renamenx for more details.
 
         Args:
-            key (str): The key to rename.
-            new_key (str): The new key name.
+            key (Union[str, bytes]): The key to rename.
+            new_key (Union[str, bytes]): The new key name.
 
         Command response:
             bool: True if `key` was renamed to `new_key`, or False if `new_key` already exists.
         """
         return self.append_command(RequestType.RenameNX, [key, new_key])
 
-    def custom_command(self: TTransaction, command_args: List[str]) -> TTransaction:
+    def custom_command(
+        self: TTransaction, command_args: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Executes a single command, without checking inputs.
         See the [Glide for Redis Wiki](https://github.com/aws/glide-for-redis/wiki/General-Concepts#custom-command)
@@ -240,7 +250,7 @@ class BaseTransaction:
                 transaction.customCommand(["CLIENT", "LIST","TYPE", "PUBSUB"])
 
         Args:
-            command_args (List[str]): List of strings of the command's arguments.
+            command_args (List[Union[str, bytes]]): List of command arguments.
             Every part of the command, including the command name and subcommands, should be added as a separate value in args.
 
         Command response:
@@ -248,7 +258,9 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.CustomCommand, command_args)
 
-    def append(self: TTransaction, key: str, value: str) -> TTransaction:
+    def append(
+        self: TTransaction, key: Union[str, bytes], value: Union[str, bytes]
+    ) -> TTransaction:
         """
         Appends a value to a key.
         If `key` does not exist it is created and set as an empty string, so `APPEND` will be similar to SET in this special case.
@@ -256,8 +268,8 @@ class BaseTransaction:
         See https://redis.io/commands/append for more details.
 
         Args:
-            key (str): The key to which the value will be appended.
-            value (str): The value to append.
+            key (Union[str, bytes]): The key to which the value will be appended.
+            value (Union[str, bytes]): The value to append.
 
         Commands response:
             int: The length of the string after appending the value.
@@ -277,52 +289,55 @@ class BaseTransaction:
             information to retrieve. When no parameter is provided, the default option is assumed.
 
         Command response:
-            str: Returns a string containing the information for the sections requested.
+            bytes: Returns a string containing the information for the sections requested.
         """
         args = [section.value for section in sections] if sections else []
         return self.append_command(RequestType.Info, args)
 
-    def delete(self: TTransaction, keys: List[str]) -> TTransaction:
+    def delete(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Delete one or more keys from the database. A key is ignored if it does not exist.
         See https://redis.io/commands/del/ for details.
 
         Args:
-            keys (List[str]): A list of keys to be deleted from the database.
+            keys (List[Union[str, bytes]]): A list of keys to be deleted from the database.
 
         Command response:
             int: The number of keys that were deleted.
         """
         return self.append_command(RequestType.Del, keys)
 
-    def config_get(self: TTransaction, parameters: List[str]) -> TTransaction:
+    def config_get(
+        self: TTransaction, parameters: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Get the values of configuration parameters.
         See https://redis.io/commands/config-get/ for details.
 
         Args:
-            parameters (List[str]): A list of configuration parameter names to retrieve values for.
+            parameters (List[Union[str, bytes]]): A list of configuration parameter names to retrieve values for.
 
         Command response:
-            Dict[str, str]: A dictionary of values corresponding to the configuration parameters.
+            Dict[bytes, bytes]: A dictionary of values corresponding to the configuration parameters.
         """
         return self.append_command(RequestType.ConfigGet, parameters)
 
     def config_set(
-        self: TTransaction, parameters_map: Mapping[str, str]
+        self: TTransaction,
+        parameters_map: Mapping[Union[str, bytes], Union[str, bytes]],
     ) -> TTransaction:
         """
         Set configuration parameters to the specified values.
         See https://redis.io/commands/config-set/ for details.
 
         Args:
-            parameters_map (Mapping[str, str]): A map consisting of configuration
+            parameters_map (Mapping[Union[str, bytes], Union[str, bytes]]): A map consisting of configuration
             parameters and their respective values to set.
 
         Command response:
             OK: Returns OK if all configurations have been successfully set. Otherwise, the transaction fails with an error.
         """
-        parameters: List[str] = []
+        parameters: List[Union[str, bytes]] = []
         for pair in parameters_map.items():
             parameters.extend(pair)
         return self.append_command(RequestType.ConfigSet, parameters)
@@ -337,23 +352,27 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ConfigResetStat, [])
 
-    def mset(self: TTransaction, key_value_map: Mapping[str, str]) -> TTransaction:
+    def mset(
+        self: TTransaction, key_value_map: Mapping[Union[str, bytes], Union[str, bytes]]
+    ) -> TTransaction:
         """
         Set multiple keys to multiple values in a single atomic operation.
         See https://redis.io/commands/mset/ for more details.
 
         Args:
-            parameters (Mapping[str, str]): A map of key value pairs.
+            parameters (Mapping[Union[str, bytes], Union[str, bytes]]): A map of key value pairs.
 
         Command response:
             OK: a simple OK response.
         """
-        parameters: List[str] = []
+        parameters: List[Union[str, bytes]] = []
         for pair in key_value_map.items():
             parameters.extend(pair)
         return self.append_command(RequestType.MSet, parameters)
 
-    def msetnx(self: TTransaction, key_value_map: Mapping[str, str]) -> TTransaction:
+    def msetnx(
+        self: TTransaction, key_value_map: Mapping[Union[str, bytes], Union[str, bytes]]
+    ) -> TTransaction:
         """
         Sets multiple keys to values if the key does not exist. The operation is atomic, and if one or
         more keys already exist, the entire operation fails.
@@ -361,38 +380,38 @@ class BaseTransaction:
         See https://valkey.io/commands/msetnx/ for more details.
 
         Args:
-            key_value_map (Mapping[str, str]): A key-value map consisting of keys and their respective values to set.
+            key_value_map (Mapping[Union[str, bytes], Union[str, bytes]]): A key-value map consisting of keys and their respective values to set.
 
         Commands response:
             bool: True if all keys were set. False if no key was set.
         """
-        parameters: List[str] = []
+        parameters: List[Union[str, bytes]] = []
         for pair in key_value_map.items():
             parameters.extend(pair)
         return self.append_command(RequestType.MSetNX, parameters)
 
-    def mget(self: TTransaction, keys: List[str]) -> TTransaction:
+    def mget(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Retrieve the values of multiple keys.
         See https://redis.io/commands/mget/ for more details.
 
         Args:
-            keys (List[str]): A list of keys to retrieve values for.
+            keys (List[Union[str, bytes]]): A list of keys to retrieve values for.
 
         Command response:
-            List[Optional[str]]: A list of values corresponding to the provided keys. If a key is not found,
+            List[Optional[bytes]]: A list of values corresponding to the provided keys. If a key is not found,
             its corresponding value in the list will be None.
         """
         return self.append_command(RequestType.MGet, keys)
 
-    def touch(self: TTransaction, keys: List[str]) -> TTransaction:
+    def touch(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Updates the last access time of specified keys.
 
         See https://valkey.io/commands/touch/ for details.
 
         Args:
-            keys (List[str]): The keys to update last access time.
+            keys (List[Union[str, bytes]]): The keys to update last access time.
 
         Commands response:
             int: The number of keys that were updated, a key is ignored if it doesn't exist.
@@ -419,7 +438,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ClientId, [])
 
-    def incr(self: TTransaction, key: str) -> TTransaction:
+    def incr(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Increments the number stored at `key` by one.
         If `key` does not exist, it is set to 0 before performing the
@@ -427,21 +446,21 @@ class BaseTransaction:
         See https://redis.io/commands/incr/ for more details.
 
         Args:
-          key (str): The key to increment its value.
+          key (Union[str, bytes]): The key to increment its value.
 
         Command response:
             int: the value of `key` after the increment.
         """
         return self.append_command(RequestType.Incr, [key])
 
-    def incrby(self: TTransaction, key: str, amount: int) -> TTransaction:
+    def incrby(self: TTransaction, key: Union[str, bytes], amount: int) -> TTransaction:
         """
         Increments the number stored at `key` by `amount`. If the key does not exist, it is set to 0 before performing
         the operation.
         See https://redis.io/commands/incrby/ for more details.
 
         Args:
-          key (str): The key to increment its value.
+          key (Union[str, bytes]): The key to increment its value.
           amount (int) : The amount to increment.
 
         Command response:
@@ -449,7 +468,9 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.IncrBy, [key, str(amount)])
 
-    def incrbyfloat(self: TTransaction, key: str, amount: float) -> TTransaction:
+    def incrbyfloat(
+        self: TTransaction, key: Union[str, bytes], amount: float
+    ) -> TTransaction:
         """
         Increment the string representing a floating point number stored at `key` by `amount`.
         By using a negative increment value, the value stored at the `key` is decremented.
@@ -457,7 +478,7 @@ class BaseTransaction:
         See https://redis.io/commands/incrbyfloat/ for more details.
 
         Args:
-          key (str): The key to increment its value.
+          key (Union[str, bytes]): The key to increment its value.
           amount (float) : The amount to increment.
 
         Command response:
@@ -465,43 +486,45 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.IncrByFloat, [key, str(amount)])
 
-    def ping(self: TTransaction, message: Optional[str] = None) -> TTransaction:
+    def ping(
+        self: TTransaction, message: Optional[Union[str, bytes]] = None
+    ) -> TTransaction:
         """
         Ping the Redis server.
         See https://redis.io/commands/ping/ for more details.
 
         Args:
-           message (Optional[str]): An optional message to include in the PING command. If not provided,
+           message (Optional[Union[str, bytes]]): An optional message to include in the PING command. If not provided,
             the server will respond with "PONG". If provided, the server will respond with a copy of the message.
 
         Command response:
-           str: "PONG" if `message` is not provided, otherwise return a copy of `message`.
+           bytes: "PONG" if `message` is not provided, otherwise return a copy of `message`.
         """
         argument = [] if message is None else [message]
         return self.append_command(RequestType.Ping, argument)
 
-    def decr(self: TTransaction, key: str) -> TTransaction:
+    def decr(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Decrements the number stored at `key` by one. If the key does not exist, it is set to 0 before performing the
         operation.
         See https://redis.io/commands/decr/ for more details.
 
         Args:
-          key (str): The key to decrement its value.
+          key (Union[str, bytes]): The key to decrement its value.
 
         Command response:
             int: the value of `key` after the decrement.
         """
         return self.append_command(RequestType.Decr, [key])
 
-    def decrby(self: TTransaction, key: str, amount: int) -> TTransaction:
+    def decrby(self: TTransaction, key: Union[str, bytes], amount: int) -> TTransaction:
         """
         Decrements the number stored at `key` by `amount`. If the key does not exist, it is set to 0 before performing
         the operation.
         See https://redis.io/commands/decrby/ for more details.
 
         Args:
-          key (str): The key to decrement its value.
+          key (Union[str, bytes]): The key to decrement its value.
          amount (int) : The amount to decrement.
 
         Command response:
@@ -509,7 +532,12 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.DecrBy, [key, str(amount)])
 
-    def setrange(self: TTransaction, key: str, offset: int, value: str) -> TTransaction:
+    def setrange(
+        self: TTransaction,
+        key: Union[str, bytes],
+        offset: int,
+        value: Union[str, bytes],
+    ) -> TTransaction:
         """
         Overwrites part of the string stored at `key`, starting at the specified
         `offset`, for the entire length of `value`.
@@ -520,9 +548,9 @@ class BaseTransaction:
         See https://valkey.io/commands/setrange for more details.
 
         Args:
-            key (str): The key of the string to update.
+            key (Union[str, bytes]): The key of the string to update.
             offset (int): The position in the string where `value` should be written.
-            value (str): The string written with `offset`.
+            value (Union[str, bytes]): The string written with `offset`.
 
         Command response:
             int: The length of the string stored at `key` after it was modified.
@@ -530,45 +558,49 @@ class BaseTransaction:
         return self.append_command(RequestType.SetRange, [key, str(offset), value])
 
     def hset(
-        self: TTransaction, key: str, field_value_map: Mapping[str, str]
+        self: TTransaction,
+        key: Union[str, bytes],
+        field_value_map: Mapping[Union[str, bytes], Union[str, bytes]],
     ) -> TTransaction:
         """
         Sets the specified fields to their respective values in the hash stored at `key`.
         See https://redis.io/commands/hset/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field_value_map (Mapping[str, str]): A field-value map consisting of fields and their corresponding values
+            key (Union[str, bytes]): The key of the hash.
+            field_value_map (Mapping[Union[str, bytes], Union[str, bytes]]): A field-value map consisting of fields and their corresponding values
             to be set in the hash stored at the specified key.
 
         Command response:
             int: The number of fields that were added to the hash.
         """
-        field_value_list: List[str] = [key]
+        field_value_list: List[Union[str, bytes]] = [key]
         for pair in field_value_map.items():
             field_value_list.extend(pair)
         return self.append_command(RequestType.HSet, field_value_list)
 
-    def hget(self: TTransaction, key: str, field: str) -> TTransaction:
+    def hget(
+        self: TTransaction, key: Union[str, bytes], field: Union[str, bytes]
+    ) -> TTransaction:
         """
         Retrieves the value associated with `field` in the hash stored at `key`.
         See https://redis.io/commands/hget/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field (str): The field whose value should be retrieved.
+            key (Union[str, bytes]): The key of the hash.
+            field (Union[str, bytes]): The field whose value should be retrieved.
 
         Command response:
-            Optional[str]: The value associated `field` in the hash.
+            Optional[bytes]: The value associated `field` in the hash.
             Returns None if `field` is not presented in the hash or `key` does not exist.
         """
         return self.append_command(RequestType.HGet, [key, field])
 
     def hsetnx(
         self: TTransaction,
-        key: str,
-        field: str,
-        value: str,
+        key: Union[str, bytes],
+        field: Union[str, bytes],
+        value: Union[str, bytes],
     ) -> TTransaction:
         """
         Sets `field` in the hash stored at `key` to `value`, only if `field` does not yet exist.
@@ -577,16 +609,21 @@ class BaseTransaction:
         See https://redis.io/commands/hsetnx/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field (str): The field to set the value for.
-            value (str): The value to set.
+            key (Union[str, bytes]): The key of the hash.
+            field (Union[str, bytes]): The field to set the value for.
+            value (Union[str, bytes]): The value to set.
 
         Commands response:
             bool: True if the field was set, False if the field already existed and was not set.
         """
         return self.append_command(RequestType.HSetNX, [key, field, value])
 
-    def hincrby(self: TTransaction, key: str, field: str, amount: int) -> TTransaction:
+    def hincrby(
+        self: TTransaction,
+        key: Union[str, bytes],
+        field: Union[str, bytes],
+        amount: int,
+    ) -> TTransaction:
         """
         Increment or decrement the value of a `field` in the hash stored at `key` by the specified amount.
         By using a negative increment value, the value stored at `field` in the hash stored at `key` is decremented.
@@ -594,8 +631,8 @@ class BaseTransaction:
         See https://redis.io/commands/hincrby/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field (str): The field in the hash stored at `key` to increment or decrement its value.
+            key (Union[str, bytes]): The key of the hash.
+            field (Union[str, bytes]): The field in the hash stored at `key` to increment or decrement its value.
             amount (int): The amount by which to increment or decrement the field's value.
                 Use a negative value to decrement.
 
@@ -605,7 +642,10 @@ class BaseTransaction:
         return self.append_command(RequestType.HIncrBy, [key, field, str(amount)])
 
     def hincrbyfloat(
-        self: TTransaction, key: str, field: str, amount: float
+        self: TTransaction,
+        key: Union[str, bytes],
+        field: Union[str, bytes],
+        amount: float,
     ) -> TTransaction:
         """
         Increment or decrement the floating-point value stored at `field` in the hash stored at `key` by the specified
@@ -615,8 +655,8 @@ class BaseTransaction:
         See https://redis.io/commands/hincrbyfloat/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field (str): The field in the hash stored at `key` to increment or decrement its value.
+            key (Union[str, bytes]): The key of the hash.
+            field (Union[str, bytes]): The field in the hash stored at `key` to increment or decrement its value.
             amount (float): The amount by which to increment or decrement the field's value.
                 Use a negative value to decrement.
 
@@ -625,14 +665,16 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.HIncrByFloat, [key, field, str(amount)])
 
-    def hexists(self: TTransaction, key: str, field: str) -> TTransaction:
+    def hexists(
+        self: TTransaction, key: Union[str, bytes], field: Union[str, bytes]
+    ) -> TTransaction:
         """
         Check if a field exists in the hash stored at `key`.
         See https://redis.io/commands/hexists/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field (str): The field to check in the hash stored at `key`.
+            key (Union[str, bytes]): The key of the hash.
+            field (Union[str, bytes]): The field to check in the hash stored at `key`.
 
         Command response:
             bool: Returns 'True' if the hash contains the specified field. If the hash does not contain the field,
@@ -640,14 +682,14 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.HExists, [key, field])
 
-    def hlen(self: TTransaction, key: str) -> TTransaction:
+    def hlen(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
-        Returns the number of fields contained in the hash stored at `key`.
+        Returns the number of fields
 
         See https://redis.io/commands/hlen/ for more details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
 
         Command response:
             int: The number of fields in the hash, or 0 when the key does not exist.
@@ -661,155 +703,168 @@ class BaseTransaction:
         See https://redis.io/commands/client-getname/ for more details.
 
         Command response:
-            Optional[str]: Returns the name of the client connection as a string if a name is set,
+            Optional[bytes]: Returns the name of the client connection as a byte string if a name is set,
             or None if no name is assigned.
         """
         return self.append_command(RequestType.ClientGetName, [])
 
-    def hgetall(self: TTransaction, key: str) -> TTransaction:
+    def hgetall(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns all fields and values of the hash stored at `key`.
         See https://redis.io/commands/hgetall/ for details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
 
         Command response:
-            Dict[str, str]: A dictionary of fields and their values stored in the hash. Every field name in the list is followed by
+            Dict[bytes, bytes]: A dictionary of fields and their values stored in the hash. Every field name in the list is followed by
             its value.
             If `key` does not exist, it returns an empty dictionary.
         """
+        key = key.encode() if isinstance(key, str) else key
         return self.append_command(RequestType.HGetAll, [key])
 
-    def hmget(self: TTransaction, key: str, fields: List[str]) -> TTransaction:
+    def hmget(
+        self: TTransaction, key: Union[str, bytes], fields: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Retrieve the values associated with specified fields in the hash stored at `key`.
         See https://redis.io/commands/hmget/ for details.
 
         Args:
-            key (str): The key of the hash.
-            fields (List[str]): The list of fields in the hash stored at `key` to retrieve from the database.
+            key (Union[str, bytes]): The key of the hash.
+            fields (List[Union[str, bytes]]): The list of fields in the hash stored at `key` to retrieve from the database.
 
-        Returns:
-            List[Optional[str]]: A list of values associated with the given fields, in the same order as they are requested.
+        Command response:
+            List[Optional[bytes]]: A list of values associated with the given fields, in the same order as they are requested.
             For every field that does not exist in the hash, a null value is returned.
             If `key` does not exist, it is treated as an empty hash, and the function returns a list of null values.
         """
         return self.append_command(RequestType.HMGet, [key] + fields)
 
-    def hdel(self: TTransaction, key: str, fields: List[str]) -> TTransaction:
+    def hdel(
+        self: TTransaction, key: Union[str, bytes], fields: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Remove specified fields from the hash stored at `key`.
         See https://redis.io/commands/hdel/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            fields (List[str]): The list of fields to remove from the hash stored at `key`.
+            key (Union[str, bytes]): The key of the hash.
+            fields (List[Union[str, bytes]]): The list of fields to remove from the hash stored at `key`.
 
-        Returns:
+        Command response:
             int: The number of fields that were removed from the hash, excluding specified but non-existing fields.
             If `key` does not exist, it is treated as an empty hash, and the function returns 0.
         """
         return self.append_command(RequestType.HDel, [key] + fields)
 
-    def hvals(self: TTransaction, key: str) -> TTransaction:
+    def hvals(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns all values in the hash stored at `key`.
 
         See https://redis.io/commands/hvals/ for more details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
 
         Command response:
-            List[str]: A list of values in the hash, or an empty list when the key does not exist.
+            List[bytes]: A list of values in the hash, or an empty list when the key does not exist.
         """
         return self.append_command(RequestType.HVals, [key])
 
-    def hkeys(self: TTransaction, key: str) -> TTransaction:
+    def hkeys(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns all field names in the hash stored at `key`.
 
         See https://redis.io/commands/hkeys/ for more details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
 
         Command response:
-            List[str]: A list of field names for the hash, or an empty list when the key does not exist.
+            List[bytes]: A list of field names for the hash, or an empty list when the key does not exist.
         """
         return self.append_command(RequestType.HKeys, [key])
 
-    def hrandfield(self: TTransaction, key: str) -> TTransaction:
+    def hrandfield(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns a random field name from the hash value stored at `key`.
 
         See https://valkey.io/commands/hrandfield for more details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
 
         Command response:
-            Optional[str]: A random field name from the hash stored at `key`.
+            Optional[bytes]: A random field name from the hash stored at `key`.
             If the hash does not exist or is empty, None will be returned.
         """
         return self.append_command(RequestType.HRandField, [key])
 
-    def hrandfield_count(self: TTransaction, key: str, count: int) -> TTransaction:
+    def hrandfield_count(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Retrieves up to `count` random field names from the hash value stored at `key`.
 
         See https://valkey.io/commands/hrandfield for more details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
             count (int): The number of field names to return.
                 If `count` is positive, returns unique elements.
                 If `count` is negative, allows for duplicates elements.
 
         Command response:
-            List[str]: A list of random field names from the hash.
+            List[bytes]: A list of random field names from the hash.
             If the hash does not exist or is empty, the response will be an empty list.
         """
         return self.append_command(RequestType.HRandField, [key, str(count)])
 
-    def hrandfield_withvalues(self: TTransaction, key: str, count: int) -> TTransaction:
+    def hrandfield_withvalues(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Retrieves up to `count` random field names along with their values from the hash value stored at `key`.
 
         See https://valkey.io/commands/hrandfield for more details.
 
         Args:
-            key (str): The key of the hash.
+            key (Union[str, bytes]): The key of the hash.
             count (int): The number of field names to return.
                 If `count` is positive, returns unique elements.
                 If `count` is negative, allows for duplicates elements.
 
         Command response:
-            List[List[str]]: A list of `[field_name, value]` lists, where `field_name` is a random field name from the
+            List[List[bytes]]: A list of `[field_name, value]` lists, where `field_name` is a random field name from the
             hash and `value` is the associated value of the field name.
             If the hash does not exist or is empty, the response will be an empty list.
         """
         return self.append_command(
-            RequestType.HRandField, [key, str(count), "WITHVALUES"]
+            RequestType.HRandField, [key, str(count).encode(), b"WITHVALUES"]
         )
 
-    def hstrlen(self: TTransaction, key: str, field: str) -> TTransaction:
+    def hstrlen(
+        self: TTransaction, key: Union[str, bytes], field: Union[str, bytes]
+    ) -> TTransaction:
         """
         Returns the string length of the value associated with `field` in the hash stored at `key`.
 
         See https://valkey.io/commands/hstrlen/ for more details.
 
         Args:
-            key (str): The key of the hash.
-            field (str): The field in the hash.
+            key (Union[str, bytes]): The key of the hash.
+            field (Union[str, bytes]): The field in the hash.
 
         Commands response:
             int: The string length or 0 if `field` or `key` does not exist.
         """
         return self.append_command(RequestType.HStrlen, [key, field])
 
-    def lpush(self: TTransaction, key: str, elements: List[str]) -> TTransaction:
+    def lpush(
+        self: TTransaction, key: Union[str, bytes], elements: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Insert all the specified values at the head of the list stored at `key`.
         `elements` are inserted one after the other to the head of the list, from the leftmost element
@@ -817,15 +872,21 @@ class BaseTransaction:
         See https://redis.io/commands/lpush/ for more details.
 
         Args:
-            key (str): The key of the list.
-            elements (List[str]): The elements to insert at the head of the list stored at `key`.
+            key (Union[str, bytes]): The key of the list.
+            elements (List[Union[str, bytes]]): The elements to insert at the head of the list stored at `key`.
 
         Command response:
             int: The length of the list after the push operations.
         """
+        key = key.encode() if isinstance(key, str) else key
+        elements = [
+            elem.encode() if isinstance(elem, str) else elem for elem in elements
+        ]
         return self.append_command(RequestType.LPush, [key] + elements)
 
-    def lpushx(self: TTransaction, key: str, elements: List[str]) -> TTransaction:
+    def lpushx(
+        self: TTransaction, key: Union[str, bytes], elements: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Inserts all the specified values at the head of the list stored at `key`, only if `key` exists and holds a list.
         If `key` is not a list, this performs no operation.
@@ -833,45 +894,49 @@ class BaseTransaction:
         See https://redis.io/commands/lpushx/ for more details.
 
         Args:
-            key (str): The key of the list.
-            elements (List[str]): The elements to insert at the head of the list stored at `key`.
+            key (Union[str, bytes]): The key of the list.
+            elements (List[Union[str, bytes]]): The elements to insert at the head of the list stored at `key`.
 
         Command response:
             int: The length of the list after the push operation.
         """
         return self.append_command(RequestType.LPushX, [key] + elements)
 
-    def lpop(self: TTransaction, key: str) -> TTransaction:
+    def lpop(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Remove and return the first elements of the list stored at `key`.
         The command pops a single element from the beginning of the list.
         See https://redis.io/commands/lpop/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
 
         Command response:
-            Optional[str]: The value of the first element.
+            Optional[bytes]: The value of the first element.
             If `key` does not exist, None will be returned.
         """
         return self.append_command(RequestType.LPop, [key])
 
-    def lpop_count(self: TTransaction, key: str, count: int) -> TTransaction:
+    def lpop_count(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Remove and return up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/lpop/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             count (int): The count of elements to pop from the list.
 
         Command response:
-            Optional[List[str]]: A a list of popped elements will be returned depending on the list's length.
+            Optional[List[bytes]]: A list of popped elements will be returned depending on the list's length.
             If `key` does not exist, None will be returned.
         """
         return self.append_command(RequestType.LPop, [key, str(count)])
 
-    def blpop(self: TTransaction, keys: List[str], timeout: float) -> TTransaction:
+    def blpop(
+        self: TTransaction, keys: List[Union[str, bytes]], timeout: float
+    ) -> TTransaction:
         """
         Pops an element from the head of the first list that is non-empty, with the given keys being checked in the
         order that they are given. Blocks the connection when there are no elements to pop from any of the given lists.
@@ -881,18 +946,18 @@ class BaseTransaction:
         BLPOP is a client blocking command, see https://github.com/aws/glide-for-redis/wiki/General-Concepts#blocking-commands for more details and best practices.
 
         Args:
-            keys (List[str]): The keys of the lists to pop from.
+            keys (List[Union[str, bytes]]): The keys of the lists to pop from.
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of 0 will block indefinitely.
 
         Command response:
-            Optional[List[str]]: A two-element list containing the key from which the element was popped and the value of the
+            Optional[List[bytes]]: A two-element list containing the key from which the element was popped and the value of the
                 popped element, formatted as `[key, value]`. If no element could be popped and the `timeout` expired, returns None.
         """
         return self.append_command(RequestType.BLPop, keys + [str(timeout)])
 
     def lmpop(
         self: TTransaction,
-        keys: List[str],
+        keys: List[Union[str, bytes]],
         direction: ListDirection,
         count: Optional[int] = None,
     ) -> TTransaction:
@@ -902,12 +967,12 @@ class BaseTransaction:
         See https://valkey.io/commands/lmpop/ for details.
 
         Args:
-            keys (List[str]): An array of keys of lists.
+            keys (List[Union[str, bytes]]): An array of keys of lists.
             direction (ListDirection): The direction based on which elements are popped from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             count (Optional[int]): The maximum number of popped elements. If not provided, defaults to popping a single element.
 
         Command response:
-            Optional[Mapping[str, List[str]]]: A map of `key` name mapped to an array of popped elements, or None if no elements could be popped.
+            Optional[Mapping[bytes, List[bytes]]]: A map of `key` name mapped to an array of popped elements, or None if no elements could be popped.
 
         Since: Redis version 7.0.0.
         """
@@ -919,7 +984,7 @@ class BaseTransaction:
 
     def blmpop(
         self: TTransaction,
-        keys: List[str],
+        keys: List[Union[str, bytes]],
         direction: ListDirection,
         timeout: float,
         count: Optional[int] = None,
@@ -932,13 +997,13 @@ class BaseTransaction:
         See https://valkey.io/commands/blmpop/ for details.
 
         Args:
-            keys (List[str]): An array of keys of lists.
+            keys (List[Union[str, bytes]]): An array of keys of lists.
             direction (ListDirection): The direction based on which elements are popped from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of `0` will block indefinitely.
             count (Optional[int]): The maximum number of popped elements. If not provided, defaults to popping a single element.
 
         Command response:
-            Optional[Mapping[str, List[str]]]: A map of `key` name mapped to an array of popped elements, or None if no elements could be popped and the timeout expired.
+            Optional[Mapping[bytes, List[bytes]]]: A map of `key` name mapped to an array of popped elements, or None if no elements could be popped and the timeout expired.
 
         Since: Redis version 7.0.0.
         """
@@ -948,7 +1013,9 @@ class BaseTransaction:
 
         return self.append_command(RequestType.BLMPop, args)
 
-    def lrange(self: TTransaction, key: str, start: int, end: int) -> TTransaction:
+    def lrange(
+        self: TTransaction, key: Union[str, bytes], start: int, end: int
+    ) -> TTransaction:
         """
         Retrieve the specified elements of the list stored at `key` within the given range.
         The offsets `start` and `end` are zero-based indexes, with 0 being the first element of the list, 1 being the next
@@ -957,12 +1024,12 @@ class BaseTransaction:
         See https://redis.io/commands/lrange/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             start (int): The starting point of the range.
             end (int): The end of the range.
 
         Command response:
-            List[str]: A list of elements within the specified range.
+            List[bytes]: A list of elements within the specified range.
             If `start` exceeds the `end` of the list, or if `start` is greater than `end`, an empty list will be returned.
             If `end` exceeds the actual end of the list, the range will stop at the actual end of the list.
             If `key` does not exist an empty list will be returned.
@@ -971,7 +1038,7 @@ class BaseTransaction:
 
     def lindex(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         index: int,
     ) -> TTransaction:
         """
@@ -984,16 +1051,21 @@ class BaseTransaction:
         See https://redis.io/commands/lindex/ for more details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             index (int): The index of the element in the list to retrieve.
 
         Command response:
-            Optional[str]: The element at `index` in the list stored at `key`.
+            Optional[bytes]: The element at `index` in the list stored at `key`.
                 If `index` is out of range or if `key` does not exist, None is returned.
         """
         return self.append_command(RequestType.LIndex, [key, str(index)])
 
-    def lset(self: TTransaction, key: str, index: int, element: str) -> TTransaction:
+    def lset(
+        self: TTransaction,
+        key: Union[str, bytes],
+        index: int,
+        element: Union[str, bytes],
+    ) -> TTransaction:
         """
         Sets the list element at `index` to `element`.
 
@@ -1001,27 +1073,31 @@ class BaseTransaction:
         Negative indices can be used to designate elements starting at the tail of the list.
         Here, `-1` means the last element, `-2` means the penultimate and so forth.
 
+
         See https://valkey.io/commands/lset/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             index (int): The index of the element in the list to be set.
-            element (str): The new element to set at the specified index.
+            element (Union[str, bytes]): The new element to set at the specified index.
 
         Commands response:
             TOK: A simple `OK` response.
         """
         return self.append_command(RequestType.LSet, [key, str(index), element])
 
-    def rpush(self: TTransaction, key: str, elements: List[str]) -> TTransaction:
-        """Inserts all the specified values at the tail of the list stored at `key`.
+    def rpush(
+        self: TTransaction, key: Union[str, bytes], elements: List[Union[str, bytes]]
+    ) -> TTransaction:
+        """
+        Inserts all the specified values at the tail of the list stored at `key`.
         `elements` are inserted one after the other to the tail of the list, from the leftmost element
         to the rightmost element. If `key` does not exist, it is created as empty list before performing the push operations.
         See https://redis.io/commands/rpush/ for more details.
 
         Args:
-            key (str): The key of the list.
-            elements (List[str]): The elements to insert at the tail of the list stored at `key`.
+            key (Union[str, bytes]): The key of the list.
+            elements (List[Union[str, bytes]]): The elements to insert at the tail of the list stored at `key`.
 
         Command response:
             int: The length of the list after the push operations.
@@ -1029,7 +1105,9 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.RPush, [key] + elements)
 
-    def rpushx(self: TTransaction, key: str, elements: List[str]) -> TTransaction:
+    def rpushx(
+        self: TTransaction, key: Union[str, bytes], elements: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Inserts all the specified values at the tail of the list stored at `key`, only if `key` exists and holds a list.
         If `key` is not a list, this performs no operation.
@@ -1037,45 +1115,51 @@ class BaseTransaction:
         See https://redis.io/commands/rpushx/ for more details.
 
         Args:
-            key (str): The key of the list.
-            elements (List[str]): The elements to insert at the tail of the list stored at `key`.
+            key (Union[str, bytes]): The key of the list.
+            elements (List[Union[str, bytes]]): The elements to insert at the tail of the list stored at `key`.
 
         Command response:
             int: The length of the list after the push operation.
         """
         return self.append_command(RequestType.RPushX, [key] + elements)
 
-    def rpop(self: TTransaction, key: str, count: Optional[int] = None) -> TTransaction:
+    def rpop(
+        self: TTransaction, key: Union[str, bytes], count: Optional[int] = None
+    ) -> TTransaction:
         """
         Removes and returns the last elements of the list stored at `key`.
         The command pops a single element from the end of the list.
         See https://redis.io/commands/rpop/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
 
         Commands response:
-            Optional[str]: The value of the last element.
+            Optional[bytes]: The value of the last element.
             If `key` does not exist, None will be returned.
         """
         return self.append_command(RequestType.RPop, [key])
 
-    def rpop_count(self: TTransaction, key: str, count: int) -> TTransaction:
+    def rpop_count(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Removes and returns up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/rpop/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             count (int): The count of elements to pop from the list.
 
         Commands response:
-            Optional[List[str]: A list of popped elements will be returned depending on the list's length.
+            Optional[List[bytes]]: A list of popped elements will be returned depending on the list's length.
             If `key` does not exist, None will be returned.
         """
         return self.append_command(RequestType.RPop, [key, str(count)])
 
-    def brpop(self: TTransaction, keys: List[str], timeout: float) -> TTransaction:
+    def brpop(
+        self: TTransaction, keys: List[Union[str, bytes]], timeout: float
+    ) -> TTransaction:
         """
         Pops an element from the tail of the first list that is non-empty, with the given keys being checked in the
         order that they are given. Blocks the connection when there are no elements to pop from any of the given lists.
@@ -1085,17 +1169,21 @@ class BaseTransaction:
         BRPOP is a client blocking command, see https://github.com/aws/glide-for-redis/wiki/General-Concepts#blocking-commands for more details and best practices.
 
         Args:
-            keys (List[str]): The keys of the lists to pop from.
+            keys (List[Union[str, bytes]]): The keys of the lists to pop from.
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of 0 will block indefinitely.
 
         Command response:
-            Optional[List[str]]: A two-element list containing the key from which the element was popped and the value of the
+            Optional[List[bytes]]: A two-element list containing the key from which the element was popped and the value of the
                 popped element, formatted as `[key, value]`. If no element could be popped and the `timeout` expired, returns None.
         """
         return self.append_command(RequestType.BRPop, keys + [str(timeout)])
 
     def linsert(
-        self: TTransaction, key: str, position: InsertPosition, pivot: str, element: str
+        self: TTransaction,
+        key: Union[str, bytes],
+        position: InsertPosition,
+        pivot: Union[str, bytes],
+        element: Union[str, bytes],
     ) -> TTransaction:
         """
         Inserts `element` in the list at `key` either before or after the `pivot`.
@@ -1103,11 +1191,11 @@ class BaseTransaction:
         See https://valkey.io/commands/linsert/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             position (InsertPosition): The relative position to insert into - either `InsertPosition.BEFORE` or
                 `InsertPosition.AFTER` the `pivot`.
-            pivot (str): An element of the list.
-            element (str): The new element to insert.
+            pivot (Union[str, bytes]): An element of the list.
+            element (Union[str, bytes]): The new element to insert.
 
         Command response:
             int: The list length after a successful insert operation.
@@ -1120,8 +1208,8 @@ class BaseTransaction:
 
     def lmove(
         self: TTransaction,
-        source: str,
-        destination: str,
+        source: Union[str, bytes],
+        destination: Union[str, bytes],
         where_from: ListDirection,
         where_to: ListDirection,
     ) -> TTransaction:
@@ -1133,24 +1221,25 @@ class BaseTransaction:
         See https://valkey.io/commands/lmove/ for details.
 
         Args:
-            source (str): The key to the source list.
-            destination (str): The key to the destination list.
+            source (Union[str, bytes]): The key to the source list.
+            destination (Union[str, bytes]): The key to the destination list.
             where_from (ListDirection): The direction to remove the element from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             where_to (ListDirection): The direction to add the element to (`ListDirection.LEFT` or `ListDirection.RIGHT`).
 
         Command response:
-            Optional[str]: The popped element, or `None` if `source` does not exist.
+            Optional[bytes]: The popped element, or `None` if `source` does not exist.
 
         Since: Redis version 6.2.0.
         """
         return self.append_command(
-            RequestType.LMove, [source, destination, where_from.value, where_to.value]
+            RequestType.LMove,
+            [source, destination, where_from.value.encode(), where_to.value.encode()],
         )
 
     def blmove(
         self: TTransaction,
-        source: str,
-        destination: str,
+        source: Union[str, bytes],
+        destination: Union[str, bytes],
         where_from: ListDirection,
         where_to: ListDirection,
         timeout: float,
@@ -1164,23 +1253,31 @@ class BaseTransaction:
         See https://valkey.io/commands/blmove/ for details.
 
         Args:
-            source (str): The key to the source list.
-            destination (str): The key to the destination list.
+            source (Union[str, bytes]): The key to the source list.
+            destination (Union[str, bytes]): The key to the destination list.
             where_from (ListDirection): The direction to remove the element from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             where_to (ListDirection): The direction to add the element to (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of `0` will block indefinitely.
 
         Command response:
-            Optional[str]: The popped element, or `None` if `source` does not exist or if the operation timed-out.
+            Optional[bytes]: The popped element, or `None` if `source` does not exist or if the operation timed-out.
 
         Since: Redis version 6.2.0.
         """
         return self.append_command(
             RequestType.BLMove,
-            [source, destination, where_from.value, where_to.value, str(timeout)],
+            [
+                source,
+                destination,
+                where_from.value.encode(),
+                where_to.value.encode(),
+                str(timeout).encode(),
+            ],
         )
 
-    def sadd(self: TTransaction, key: str, members: List[str]) -> TTransaction:
+    def sadd(
+        self: TTransaction, key: Union[str, bytes], members: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Add specified members to the set stored at `key`.
         Specified members that are already a member of this set are ignored.
@@ -1188,23 +1285,25 @@ class BaseTransaction:
         See https://redis.io/commands/sadd/ for more details.
 
         Args:
-            key (str): The key where members will be added to its set.
-            members (List[str]): A list of members to add to the set stored at key.
+            key (Union[str, bytes]): The key where members will be added to its set.
+            members (List[Union[str, bytes]]): A list of members to add to the set stored at key.
 
         Command response:
             int: The number of members that were added to the set, excluding members already present.
         """
         return self.append_command(RequestType.SAdd, [key] + members)
 
-    def srem(self: TTransaction, key: str, members: List[str]) -> TTransaction:
+    def srem(
+        self: TTransaction, key: Union[str, bytes], members: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Remove specified members from the set stored at `key`.
         Specified members that are not a member of this set are ignored.
         See https://redis.io/commands/srem/ for details.
 
         Args:
-            key (str): The key from which members will be removed.
-            members (List[str]): A list of members to remove from the set stored at key.
+            key (Union[str, bytes]): The key from which members will be removed.
+            members (List[Union[str, bytes]]): A list of members to remove from the set stored at key.
 
         Commands response:
             int: The number of members that were removed from the set, excluding non-existing members.
@@ -1212,34 +1311,34 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.SRem, [key] + members)
 
-    def smembers(self: TTransaction, key: str) -> TTransaction:
+    def smembers(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Retrieve all the members of the set value stored at `key`.
         See https://redis.io/commands/smembers/ for details.
 
         Args:
-            key (str): The key from which to retrieve the set members.
+            key (Union[str, bytes]): The key from which to retrieve the set members.
 
         Commands response:
-            Set[str]: A set of all members of the set.
-                If `key` does not exist an empty list will be returned.
+            Set[bytes]: A set of all members of the set.
+                If `key` does not exist an empty set will be returned.
         """
         return self.append_command(RequestType.SMembers, [key])
 
-    def scard(self: TTransaction, key: str) -> TTransaction:
+    def scard(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Retrieve the set cardinality (number of elements) of the set stored at `key`.
         See https://redis.io/commands/scard/ for details.
 
         Args:
-            key (str): The key from which to retrieve the number of set members.
+            key (Union[str, bytes]): The key from which to retrieve the number of set members.
 
         Commands response:
             int: The cardinality (number of elements) of the set, or 0 if the key does not exist.
         """
         return self.append_command(RequestType.SCard, [key])
 
-    def spop(self: TTransaction, key: str) -> TTransaction:
+    def spop(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Removes and returns one random member from the set stored at `key`.
 
@@ -1247,15 +1346,17 @@ class BaseTransaction:
         To pop multiple members, see `spop_count`.
 
         Args:
-            key (str): The key of the set.
+            key (Union[str, bytes]): The key of the set.
 
         Commands response:
-            Optional[str]: The value of the popped member.
+            Optional[bytes]: The value of the popped member.
             If `key` does not exist, None will be returned.
         """
         return self.append_command(RequestType.SPop, [key])
 
-    def spop_count(self: TTransaction, key: str, count: int) -> TTransaction:
+    def spop_count(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Removes and returns up to `count` random members from the set stored at `key`, depending on the set's length.
 
@@ -1263,19 +1364,19 @@ class BaseTransaction:
         To pop a single member, see `spop`.
 
         Args:
-            key (str): The key of the set.
+            key (Union[str, bytes]): The key of the set.
             count (int): The count of the elements to pop from the set.
 
         Commands response:
-            Set[str]: A set of popped elements will be returned depending on the set's length.
+            Set[bytes]: A set of popped elements will be returned depending on the set's length.
                   If `key` does not exist, an empty set will be returned.
         """
         return self.append_command(RequestType.SPop, [key, str(count)])
 
     def sismember(
         self: TTransaction,
-        key: str,
-        member: str,
+        key: Union[str, bytes],
+        member: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns if `member` is a member of the set stored at `key`.
@@ -1283,8 +1384,8 @@ class BaseTransaction:
         See https://redis.io/commands/sismember/ for more details.
 
         Args:
-            key (str): The key of the set.
-            member (str): The member to check for existence in the set.
+            key (Union[str, bytes]): The key of the set.
+            member (Union[str, bytes]): The member to check for existence in the set.
 
         Commands response:
             bool: True if the member exists in the set, False otherwise.
@@ -1294,9 +1395,9 @@ class BaseTransaction:
 
     def smove(
         self: TTransaction,
-        source: str,
-        destination: str,
-        member: str,
+        source: Union[str, bytes],
+        destination: Union[str, bytes],
+        member: Union[str, bytes],
     ) -> TTransaction:
         """
         Moves `member` from the set at `source` to the set at `destination`, removing it from the source set. Creates a
@@ -1305,34 +1406,34 @@ class BaseTransaction:
         See https://valkey.io/commands/smove for more details.
 
         Args:
-            source (str): The key of the set to remove the element from.
-            destination (str): The key of the set to add the element to.
-            member (str): The set element to move.
+            source (Union[str, bytes]): The key of the set to remove the element from.
+            destination (Union[str, bytes]): The key of the set to add the element to.
+            member (Union[str, bytes]): The set element to move.
 
         Command response:
             bool: True on success, or False if the `source` set does not exist or the element is not a member of the source set.
         """
         return self.append_command(RequestType.SMove, [source, destination, member])
 
-    def sunion(self: TTransaction, keys: List[str]) -> TTransaction:
+    def sunion(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Gets the union of all the given sets.
 
         See https://valkey.io/commands/sunion for more details.
 
         Args:
-            keys (List[str]): The keys of the sets.
+            keys (List[Union[str, bytes]]): The keys of the sets.
 
         Commands response:
-            Set[str]: A set of members which are present in at least one of the given sets.
+            Set[bytes]: A set of members which are present in at least one of the given sets.
                 If none of the sets exist, an empty set will be returned.
         """
         return self.append_command(RequestType.SUnion, keys)
 
     def sunionstore(
         self: TTransaction,
-        destination: str,
-        keys: List[str],
+        destination: Union[str, bytes],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Stores the members of the union of all given sets specified by `keys` into a new set at `destination`.
@@ -1340,31 +1441,33 @@ class BaseTransaction:
         See https://valkey.io/commands/sunionstore for more details.
 
         Args:
-            destination (str): The key of the destination set.
-            keys (List[str]): The keys from which to retrieve the set members.
+            destination (Union[str, bytes]): The key of the destination set.
+            keys (List[Union[str, bytes]]): The keys from which to retrieve the set members.
 
         Command response:
             int: The number of elements in the resulting set.
         """
         return self.append_command(RequestType.SUnionStore, [destination] + keys)
 
-    def sinter(self: TTransaction, keys: List[str]) -> TTransaction:
+    def sinter(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Gets the intersection of all the given sets.
 
         See https://valkey.io/commands/sinter for more details.
 
         Args:
-            keys (List[str]): The keys of the sets.
+            keys (List[Union[str, bytes]]): The keys of the sets.
 
         Command response:
-            Set[str]: A set of members which are present in all given sets.
+            Set[bytes]: A set of members which are present in all given sets.
                 If one or more sets do not exist, an empty set will be returned.
         """
         return self.append_command(RequestType.SInter, keys)
 
     def sinterstore(
-        self: TTransaction, destination: str, keys: List[str]
+        self: TTransaction,
+        destination: Union[str, bytes],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Stores the members of the intersection of all given sets specified by `keys` into a new set at `destination`.
@@ -1372,8 +1475,8 @@ class BaseTransaction:
         See https://valkey.io/commands/sinterstore for more details.
 
         Args:
-            destination (str): The key of the destination set.
-            keys (List[str]): The keys from which to retrieve the set members.
+            destination (Union[str, bytes]): The key of the destination set.
+            keys (List[Union[str, bytes]]): The keys from which to retrieve the set members.
 
         Command response:
             int: The number of elements in the resulting set.
@@ -1381,7 +1484,7 @@ class BaseTransaction:
         return self.append_command(RequestType.SInterStore, [destination] + keys)
 
     def sintercard(
-        self: TTransaction, keys: List[str], limit: Optional[int] = None
+        self: TTransaction, keys: List[Union[str, bytes]], limit: Optional[int] = None
     ) -> TTransaction:
         """
         Gets the cardinality of the intersection of all the given sets.
@@ -1390,7 +1493,7 @@ class BaseTransaction:
         See https://valkey.io/commands/sintercard for more details.
 
         Args:
-            keys (List[str]): A list of keys representing the sets to intersect.
+            keys (List[Union[str, bytes]]): A list of keys representing the sets to intersect.
             limit (Optional[int]): An optional limit to the maximum number of intersecting elements to count.
                 If specified, the computation stops as soon as the cardinality reaches this limit.
 
@@ -1403,23 +1506,25 @@ class BaseTransaction:
             args += ["LIMIT", str(limit)]
         return self.append_command(RequestType.SInterCard, args)
 
-    def sdiff(self: TTransaction, keys: List[str]) -> TTransaction:
+    def sdiff(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Computes the difference between the first set and all the successive sets in `keys`.
 
         See https://valkey.io/commands/sdiff for more details.
 
         Args:
-            keys (List[str]): The keys of the sets to diff.
+            keys (List[Union[str, bytes]]): The keys of the sets to diff.
 
         Command response:
-            Set[str]: A set of elements representing the difference between the sets.
+            Set[bytes]: A set of elements representing the difference between the sets.
                 If any of the keys in `keys` do not exist, they are treated as empty sets.
         """
         return self.append_command(RequestType.SDiff, keys)
 
     def sdiffstore(
-        self: TTransaction, destination: str, keys: List[str]
+        self: TTransaction,
+        destination: Union[str, bytes],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Stores the difference between the first set and all the successive sets in `keys` into a new set at
@@ -1428,30 +1533,34 @@ class BaseTransaction:
         See https://valkey.io/commands/sdiffstore for more details.
 
         Args:
-            destination (str): The key of the destination set.
-            keys (List[str]): The keys of the sets to diff.
+            destination (Union[str, bytes]): The key of the destination set.
+            keys (List[Union[str, bytes]]): The keys of the sets to diff.
 
         Command response:
             int: The number of elements in the resulting set.
         """
         return self.append_command(RequestType.SDiffStore, [destination] + keys)
 
-    def smismember(self: TTransaction, key: str, members: List[str]) -> TTransaction:
+    def smismember(
+        self: TTransaction, key: Union[str, bytes], members: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Checks whether each member is contained in the members of the set stored at `key`.
 
         See https://valkey.io/commands/smismember for more details.
 
         Args:
-            key (str): The key of the set to check.
-            members (List[str]): A list of members to check for existence in the set.
+            key (Union[str, bytes]): The key of the set to check.
+            members (List[Union[str, bytes]]): A list of members to check for existence in the set.
 
         Command response:
             List[bool]: A list of bool values, each indicating if the respective member exists in the set.
         """
         return self.append_command(RequestType.SMIsMember, [key] + members)
 
-    def ltrim(self: TTransaction, key: str, start: int, end: int) -> TTransaction:
+    def ltrim(
+        self: TTransaction, key: Union[str, bytes], start: int, end: int
+    ) -> TTransaction:
         """
         Trim an existing list so that it will contain only the specified range of elements specified.
         The offsets `start` and `end` are zero-based indexes, with 0 being the first element of the list, 1 being the next
@@ -1461,7 +1570,7 @@ class BaseTransaction:
         See https://redis.io/commands/ltrim/ for more details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             start (int): The starting point of the range.
             end (int): The end of the range.
 
@@ -1470,11 +1579,16 @@ class BaseTransaction:
                 If `start` exceeds the end of the list, or if `start` is greater than `end`, the result will be an empty list
                 (which causes `key` to be removed).
                 If `end` exceeds the actual end of the list, it will be treated like the last element of the list.
-                f `key` does not exist, the response will be "OK" without changes to the database.
+                If `key` does not exist, the response will be "OK" without changes to the database.
         """
         return self.append_command(RequestType.LTrim, [key, str(start), str(end)])
 
-    def lrem(self: TTransaction, key: str, count: int, element: str) -> TTransaction:
+    def lrem(
+        self: TTransaction,
+        key: Union[str, bytes],
+        count: int,
+        element: Union[str, bytes],
+    ) -> TTransaction:
         """
         Removes the first `count` occurrences of elements equal to `element` from the list stored at `key`.
         If `count` is positive, it removes elements equal to `element` moving from head to tail.
@@ -1484,9 +1598,9 @@ class BaseTransaction:
         See https://redis.io/commands/lrem/ for more details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
             count (int): The count of occurrences of elements equal to `element` to remove.
-            element (str): The element to remove from the list.
+            element (Union[str, bytes]): The element to remove from the list.
 
         Commands response:
             int: The number of removed elements.
@@ -1494,13 +1608,13 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.LRem, [key, str(count), element])
 
-    def llen(self: TTransaction, key: str) -> TTransaction:
+    def llen(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Get the length of the list stored at `key`.
         See https://redis.io/commands/llen/ for details.
 
         Args:
-            key (str): The key of the list.
+            key (Union[str, bytes]): The key of the list.
 
         Commands response:
             int: The length of the list at the specified key.
@@ -1508,13 +1622,13 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.LLen, [key])
 
-    def exists(self: TTransaction, keys: List[str]) -> TTransaction:
+    def exists(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Returns the number of keys in `keys` that exist in the database.
         See https://redis.io/commands/exists/ for more details.
 
         Args:
-            keys (List[str]): The list of keys to check.
+            keys (List[Union[str, bytes]]): The list of keys to check.
 
         Commands response:
             int: The number of keys that exist. If the same existing key is mentioned in `keys` multiple times,
@@ -1522,7 +1636,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.Exists, keys)
 
-    def unlink(self: TTransaction, keys: List[str]) -> TTransaction:
+    def unlink(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Unlink (delete) multiple keys from the database.
         A key is ignored if it does not exist.
@@ -1531,7 +1645,7 @@ class BaseTransaction:
         See https://redis.io/commands/unlink/ for more details.
 
         Args:
-            keys (List[str]): The list of keys to unlink.
+            keys (List[Union[str, bytes]]): The list of keys to unlink.
 
         Commands response:
             int: The number of keys that were unlinked.
@@ -1540,7 +1654,7 @@ class BaseTransaction:
 
     def expire(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         seconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> TTransaction:
@@ -1552,7 +1666,7 @@ class BaseTransaction:
         See https://redis.io/commands/expire/ for more details.
 
         Args:
-            key (str): The key to set a timeout on.
+            key (Union[str, bytes]): The key to set a timeout on.
             seconds (int): The timeout in seconds.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -1560,14 +1674,14 @@ class BaseTransaction:
             bool: 'True' if the timeout was set, 'False' if the timeout was not set (e.g., the key doesn't exist or the operation is
                 skipped due to the provided arguments).
         """
-        args: List[str] = (
+        args: List[Union[str, bytes]] = (
             [key, str(seconds)] if option is None else [key, str(seconds), option.value]
         )
         return self.append_command(RequestType.Expire, args)
 
     def expireat(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         unix_seconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> TTransaction:
@@ -1581,7 +1695,7 @@ class BaseTransaction:
         See https://redis.io/commands/expireat/ for more details.
 
         Args:
-            key (str): The key to set a timeout on.
+            key (Union[str, bytes]): The key to set a timeout on.
             unix_seconds (int): The timeout in an absolute Unix timestamp.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -1598,7 +1712,7 @@ class BaseTransaction:
 
     def pexpire(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         milliseconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> TTransaction:
@@ -1610,7 +1724,7 @@ class BaseTransaction:
         See https://redis.io/commands/pexpire/ for more details.
 
         Args:
-            key (str): The key to set a timeout on.
+            key (Union[str, bytes]): The key to set a timeout on.
             milliseconds (int): The timeout in milliseconds.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -1627,7 +1741,7 @@ class BaseTransaction:
 
     def pexpireat(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         unix_milliseconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> TTransaction:
@@ -1641,7 +1755,7 @@ class BaseTransaction:
         See https://redis.io/commands/pexpireat/ for more details.
 
         Args:
-            key (str): The key to set a timeout on.
+            key (Union[str, bytes]): The key to set a timeout on.
             unix_milliseconds (int): The timeout in an absolute Unix timestamp in milliseconds.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -1656,7 +1770,7 @@ class BaseTransaction:
         )
         return self.append_command(RequestType.PExpireAt, args)
 
-    def expiretime(self: TTransaction, key: str) -> TTransaction:
+    def expiretime(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the absolute Unix timestamp (since January 1, 1970) at which
         the given `key` will expire, in seconds.
@@ -1665,7 +1779,7 @@ class BaseTransaction:
         See https://valkey.io/commands/expiretime/ for details.
 
         Args:
-            key (str): The `key` to determine the expiration value of.
+            key (Union[str, bytes]): The `key` to determine the expiration value of.
 
         Commands response:
             int: The expiration Unix timestamp in seconds, -2 if `key` does not exist or -1 if `key` exists but has no associated expire.
@@ -1674,7 +1788,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ExpireTime, [key])
 
-    def pexpiretime(self: TTransaction, key: str) -> TTransaction:
+    def pexpiretime(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the absolute Unix timestamp (since January 1, 1970) at which
         the given `key` will expire, in milliseconds.
@@ -1682,7 +1796,7 @@ class BaseTransaction:
         See https://valkey.io/commands/pexpiretime/ for details.
 
         Args:
-            key (str): The `key` to determine the expiration value of.
+            key (Union[str, bytes]): The `key` to determine the expiration value of.
 
         Commands response:
             int: The expiration Unix timestamp in milliseconds, -2 if `key` does not exist, or -1 if `key` exists but has no associated expiration.
@@ -1691,13 +1805,13 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.PExpireTime, [key])
 
-    def ttl(self: TTransaction, key: str) -> TTransaction:
+    def ttl(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the remaining time to live of `key` that has a timeout.
         See https://redis.io/commands/ttl/ for more details.
 
         Args:
-            key (str): The key to return its timeout.
+            key (Union[str, bytes]): The key to return its timeout.
 
         Commands response:
             int: TTL in seconds, -2 if `key` does not exist or -1 if `key` exists but has no associated expire.
@@ -1706,14 +1820,14 @@ class BaseTransaction:
 
     def pttl(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns the remaining time to live of `key` that has a timeout, in milliseconds.
         See https://redis.io/commands/pttl for more details.
 
         Args:
-            key (str): The key to return its timeout.
+            key (Union[str, bytes]): The key to return its timeout.
 
         Commands Response:
             int: TTL in milliseconds. -2 if `key` does not exist, -1 if `key` exists but has no associated expire.
@@ -1722,7 +1836,7 @@ class BaseTransaction:
 
     def persist(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
     ) -> TTransaction:
         """
         Remove the existing timeout on `key`, turning the key from volatile (a key with an expire set) to
@@ -1731,24 +1845,24 @@ class BaseTransaction:
         See https://redis.io/commands/persist/ for more details.
 
         Args:
-            key (str): TThe key to remove the existing timeout on.
+            key (Union[str, bytes]): The key to remove the existing timeout on.
 
         Commands response:
             bool: False if `key` does not exist or does not have an associated timeout, True if the timeout has been removed.
         """
         return self.append_command(RequestType.Persist, [key])
 
-    def echo(self: TTransaction, message: str) -> TTransaction:
+    def echo(self: TTransaction, message: Union[str, bytes]) -> TTransaction:
         """
         Echoes the provided `message` back.
 
         See https://redis.io/commands/echo for more details.
 
         Args:
-            message (str): The message to be echoed back.
+            message (Union[str, bytes]): The message to be echoed back.
 
         Commands response:
-            str: The provided `message`.
+            bytes: The provided `message`.
         """
         return self.append_command(RequestType.Echo, [message])
 
@@ -1763,17 +1877,17 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.LastSave, [])
 
-    def type(self: TTransaction, key: str) -> TTransaction:
+    def type(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
-         Returns the string representation of the type of the value stored at `key`.
+        Returns the string representation of the type of the value stored at `key`.
 
-         See https://redis.io/commands/type/ for more details.
+        See https://redis.io/commands/type/ for more details.
 
-         Args:
-             key (str): The key to check its data type.
+        Args:
+            key (Union[str, bytes]): The key to check its data type.
 
         Commands response:
-            str: If the key exists, the type of the stored value is returned.
+            bytes: If the key exists, the type of the stored value is returned.
             Otherwise, a "none" string is returned.
         """
         return self.append_command(RequestType.Type, [key])
@@ -1876,8 +1990,8 @@ class BaseTransaction:
 
     def xadd(
         self: TTransaction,
-        key: str,
-        values: List[Tuple[str, str]],
+        key: Union[str, bytes],
+        values: List[Tuple[Union[str, bytes], Union[str, bytes]]],
         options: StreamAddOptions = StreamAddOptions(),
     ) -> TTransaction:
         """
@@ -1886,12 +2000,12 @@ class BaseTransaction:
         See https://valkey.io/commands/xadd for more details.
 
         Args:
-            key (str): The key of the stream.
-            values (List[Tuple[str, str]]): Field-value pairs to be added to the entry.
-            options (Optional[StreamAddOptions]): Additional options for adding entries to the stream. Default to None. sSee `StreamAddOptions`.
+            key (Union[str, bytes]): The key of the stream.
+            values: List[Tuple[Union[str, bytes], Union[str, bytes]]]: Field-value pairs to be added to the entry.
+            options (Optional[StreamAddOptions]): Additional options for adding entries to the stream. Default to None. See `StreamAddOptions`.
 
         Commands response:
-            str: The id of the added entry, or None if `options.make_stream` is set to False and no stream with the matching `key` exists.
+            bytes: The id of the added entry, or None if `options.make_stream` is set to False and no stream with the matching `key` exists.
         """
         args = [key]
         if options:
@@ -1918,7 +2032,7 @@ class BaseTransaction:
 
     def xtrim(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         options: StreamTrimOptions,
     ) -> TTransaction:
         """
@@ -1927,11 +2041,11 @@ class BaseTransaction:
         See https://valkey.io/commands/xtrim for more details.
 
         Args:
-            key (str): The key of the stream.
+            key (Union[str, bytes]): The key of the stream.
             options (StreamTrimOptions): Options detailing how to trim the stream. See `StreamTrimOptions`.
 
         Commands response:
-            int: TThe number of entries deleted from the stream. If `key` doesn't exist, 0 is returned.
+            int: The number of entries deleted from the stream. If `key` doesn't exist, 0 is returned.
         """
         args = [key]
         if options:
@@ -1939,14 +2053,14 @@ class BaseTransaction:
 
         return self.append_command(RequestType.XTrim, args)
 
-    def xlen(self: TTransaction, key: str) -> TTransaction:
+    def xlen(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the number of entries in the stream stored at `key`.
 
         See https://valkey.io/commands/xlen for more details.
 
         Args:
-            key (str): The key of the stream.
+            key (Union[str, bytes]): The key of the stream.
 
         Command response:
             int: The number of entries in the stream. If `key` does not exist, returns 0.
@@ -2382,8 +2496,8 @@ class BaseTransaction:
 
     def geoadd(
         self: TTransaction,
-        key: str,
-        members_geospatialdata: Mapping[str, GeospatialData],
+        key: Union[str, bytes],
+        members_geospatialdata: Mapping[Union[str, bytes], GeospatialData],
         existing_options: Optional[ConditionalChange] = None,
         changed: bool = False,
     ) -> TTransaction:
@@ -2394,8 +2508,8 @@ class BaseTransaction:
         See https://valkey.io/commands/geoadd for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            members_geospatialdata (Mapping[str, GeospatialData]): A mapping of member names to their corresponding positions. See `GeospatialData`.
+            key (Union[str, bytes]): The key of the sorted set.
+            members_geospatialdata (Mapping[Union[str, bytes], GeospatialData]): A mapping of member names to their corresponding positions. See `GeospatialData`.
             The command will report an error when the user attempts to index coordinates outside the specified ranges.
             existing_options (Optional[ConditionalChange]): Options for handling existing members.
                 - NX: Only add new elements.
@@ -2424,9 +2538,9 @@ class BaseTransaction:
 
     def geodist(
         self: TTransaction,
-        key: str,
-        member1: str,
-        member2: str,
+        key: Union[str, bytes],
+        member1: Union[str, bytes],
+        member2: Union[str, bytes],
         unit: Optional[GeoUnit] = None,
     ) -> TTransaction:
         """
@@ -2435,9 +2549,9 @@ class BaseTransaction:
         See https://valkey.io/commands/geodist for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            member1 (str): The name of the first member.
-            member2 (str): The name of the second member.
+            key (Union[str, bytes]): The key of the sorted set.
+            member1 (Union[str, bytes]): The name of the first member.
+            member2 (Union[str, bytes]): The name of the second member.
             unit (Optional[GeoUnit]): The unit of distance measurement. See `GeoUnit`.
                 If not specified, the default unit is meters.
 
@@ -2451,7 +2565,9 @@ class BaseTransaction:
 
         return self.append_command(RequestType.GeoDist, args)
 
-    def geohash(self: TTransaction, key: str, members: List[str]) -> TTransaction:
+    def geohash(
+        self: TTransaction, key: Union[str, bytes], members: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Returns the GeoHash strings representing the positions of all the specified members in the sorted set stored at
         `key`.
@@ -2459,19 +2575,19 @@ class BaseTransaction:
         See https://valkey.io/commands/geohash for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            members (List[str]): The list of members whose GeoHash strings are to be retrieved.
+            key (Union[str, bytes]): The key of the sorted set.
+            members (List[Union[str, bytes]]): The list of members whose GeoHash strings are to be retrieved.
 
         Commands response:
-            List[Optional[str]]: A list of GeoHash strings representing the positions of the specified members stored at `key`.
+            List[Optional[bytes]]: A list of GeoHash strings representing the positions of the specified members stored at `key`.
             If a member does not exist in the sorted set, a None value is returned for that member.
         """
         return self.append_command(RequestType.GeoHash, [key] + members)
 
     def geopos(
         self: TTransaction,
-        key: str,
-        members: List[str],
+        key: Union[str, bytes],
+        members: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Returns the positions (longitude and latitude) of all the given members of a geospatial index in the sorted set stored at
@@ -2480,8 +2596,8 @@ class BaseTransaction:
         See https://valkey.io/commands/geopos for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            members (List[str]): The members for which to get the positions.
+            key (Union[str, bytes]): The key of the sorted set.
+            members (List[Union[str, bytes]]): The members for which to get the positions.
 
         Commands response:
             List[Optional[List[float]]]: A list of positions (longitude and latitude) corresponding to the given members.
@@ -2491,9 +2607,9 @@ class BaseTransaction:
 
     def geosearch(
         self: TTransaction,
-        key: str,
-        search_from: Union[str, GeospatialData],
-        seach_by: Union[GeoSearchByRadius, GeoSearchByBox],
+        key: Union[str, bytes],
+        search_from: Union[Union[str, bytes], GeospatialData],
+        search_by: Union[GeoSearchByRadius, GeoSearchByBox],
         order_by: Optional[OrderBy] = None,
         count: Optional[GeoSearchCount] = None,
         with_coord: bool = False,
@@ -2506,12 +2622,12 @@ class BaseTransaction:
         See https://valkey.io/commands/geosearch/ for more details.
 
         Args:
-            key (str): The key of the sorted set representing geospatial data.
-            search_from (Union[str, GeospatialData]): The location to search from. Can be specified either as a member
+            key (Union[str, bytes]): The key of the sorted set representing geospatial data.
+            search_from (Union[Union[str, bytes], GeospatialData]): The location to search from. Can be specified either as a member
                 from the sorted set or as a geospatial data (see `GeospatialData`).
             search_by (Union[GeoSearchByRadius, GeoSearchByBox]): The search criteria.
                 For circular area search, see `GeoSearchByRadius`.
-                For rectengal area search, see `GeoSearchByBox`.
+                For rectangular area search, see `GeoSearchByBox`.
             order_by (Optional[OrderBy]): Specifies the order in which the results should be returned.
                     - `ASC`: Sorts items from the nearest to the farthest, relative to the center point.
                     - `DESC`: Sorts items from the farthest to the nearest, relative to the center point.
@@ -2524,19 +2640,19 @@ class BaseTransaction:
             with_hash (bool): Whether to include geohash of the returned items. Defaults to False.
 
         Command Response:
-            List[Union[str, List[Union[str, float, int, List[float]]]]]: By default, returns a list of members (locations) names.
-            If any of `with_coord`, `with_dist` or `with_hash` are True, returns an array of arrays, we're each sub array represents a single item in the following order:
-                (str): The member (location) name.
+            List[Union[bytes, List[Union[bytes, float, int, List[float]]]]]: By default, returns a list of members (locations) names.
+            If any of `with_coord`, `with_dist` or `with_hash` are True, returns an array of arrays, where each sub-array represents a single item in the following order:
+                (bytes): The member (location) name.
                 (float): The distance from the center as a floating point number, in the same unit specified in the radius, if `with_dist` is set to True.
                 (int): The Geohash integer, if `with_hash` is set to True.
-                List[float]: The coordinates as a two item [longitude,latitude] array, if `with_coord` is set to True.
+                List[float]: The coordinates as a two-item [longitude, latitude] array, if `with_coord` is set to True.
 
         Since: Redis version 6.2.0.
         """
         args = _create_geosearch_args(
             [key],
             search_from,
-            seach_by,
+            search_by,
             order_by,
             count,
             with_coord,
@@ -2548,9 +2664,9 @@ class BaseTransaction:
 
     def geosearchstore(
         self: TTransaction,
-        destination: str,
-        source: str,
-        search_from: Union[str, GeospatialData],
+        destination: Union[str, bytes],
+        source: Union[str, bytes],
+        search_from: Union[Union[str, bytes], GeospatialData],
         search_by: Union[GeoSearchByRadius, GeoSearchByBox],
         count: Optional[GeoSearchCount] = None,
         store_dist: bool = False,
@@ -2564,9 +2680,9 @@ class BaseTransaction:
         See https://valkey.io/commands/geosearch/ for more details.
 
         Args:
-            destination (str): The key to store the search results.
-            source (str): The key of the sorted set representing geospatial data to search from.
-            search_from (Union[str, GeospatialData]): The location to search from. Can be specified either as a member
+            destination (Union[str, bytes]): The key to store the search results.
+            source (Union[str, bytes]): The key of the sorted set representing geospatial data to search from.
+            search_from (Union[Union[str, bytes], GeospatialData]): The location to search from. Can be specified either as a member
                 from the sorted set or as a geospatial data (see `GeospatialData`).
             search_by (Union[GeoSearchByRadius, GeoSearchByBox]): The search criteria.
                 For circular area search, see `GeoSearchByRadius`.
@@ -2599,8 +2715,8 @@ class BaseTransaction:
 
     def zadd(
         self: TTransaction,
-        key: str,
-        members_scores: Mapping[str, float],
+        key: Union[str, bytes],
+        members_scores: Mapping[Union[str, bytes], float],
         existing_options: Optional[ConditionalChange] = None,
         update_condition: Optional[UpdateOptions] = None,
         changed: bool = False,
@@ -2612,8 +2728,8 @@ class BaseTransaction:
         See https://redis.io/commands/zadd/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            members_scores (Mapping[str, float]): A mapping of members to their corresponding scores.
+            key (Union[str, bytes]): The key of the sorted set.
+            members_scores (Mapping[Union[str, bytes], float]): A mapping of members to their corresponding scores.
             existing_options (Optional[ConditionalChange]): Options for handling existing members.
                 - NX: Only add new elements.
                 - XX: Only update existing elements.
@@ -2652,8 +2768,8 @@ class BaseTransaction:
 
     def zadd_incr(
         self: TTransaction,
-        key: str,
-        member: str,
+        key: Union[str, bytes],
+        member: Union[str, bytes],
         increment: float,
         existing_options: Optional[ConditionalChange] = None,
         update_condition: Optional[UpdateOptions] = None,
@@ -2666,8 +2782,8 @@ class BaseTransaction:
         See https://redis.io/commands/zadd/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            member (str): A member in the sorted set to increment.
+            key (Union[str, bytes]): The key of the sorted set.
+            member (Union[str, bytes]): A member in the sorted set to increment.
             increment (float): The score to increment the member.
             existing_options (Optional[ConditionalChange]): Options for handling the member's existence.
                 - NX: Only increment a member that doesn't exist.
@@ -2699,14 +2815,14 @@ class BaseTransaction:
         args += [str(increment), member]
         return self.append_command(RequestType.ZAdd, args)
 
-    def zcard(self: TTransaction, key: str) -> TTransaction:
+    def zcard(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the cardinality (number of elements) of the sorted set stored at `key`.
 
         See https://redis.io/commands/zcard/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
 
         Commands response:
             int: The number of elements in the sorted set.
@@ -2716,7 +2832,7 @@ class BaseTransaction:
 
     def zcount(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         min_score: Union[InfBound, ScoreBoundary],
         max_score: Union[InfBound, ScoreBoundary],
     ) -> TTransaction:
@@ -2726,7 +2842,7 @@ class BaseTransaction:
         See https://redis.io/commands/zcount/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             min_score (Union[InfBound, ScoreBoundary]): The minimum score to count from.
                 Can be an instance of InfBound representing positive/negative infinity,
                 or ScoreBoundary representing a specific score and inclusivity.
@@ -2752,7 +2868,10 @@ class BaseTransaction:
         return self.append_command(RequestType.ZCount, [key, score_min, score_max])
 
     def zincrby(
-        self: TTransaction, key: str, increment: float, member: str
+        self: TTransaction,
+        key: Union[str, bytes],
+        increment: float,
+        member: Union[str, bytes],
     ) -> TTransaction:
         """
         Increments the score of `member` in the sorted set stored at `key` by `increment`.
@@ -2762,9 +2881,9 @@ class BaseTransaction:
         See https://valkey.io/commands/zincrby/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             increment (float): The score increment.
-            member (str): A member of the sorted set.
+            member (Union[str, bytes]): A member of the sorted set.
 
         Commands response:
             float: The new score of `member`.
@@ -2772,7 +2891,7 @@ class BaseTransaction:
         return self.append_command(RequestType.ZIncrBy, [key, str(increment), member])
 
     def zpopmax(
-        self: TTransaction, key: str, count: Optional[int] = None
+        self: TTransaction, key: Union[str, bytes], count: Optional[int] = None
     ) -> TTransaction:
         """
         Removes and returns the members with the highest scores from the sorted set stored at `key`.
@@ -2782,19 +2901,21 @@ class BaseTransaction:
         See https://redis.io/commands/zpopmax for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             count (Optional[int]): Specifies the quantity of members to pop. If not specified, pops one member.
             If `count` is higher than the sorted set's cardinality, returns all members and their scores, ordered from highest to lowest.
 
         Commands response:
-            Mapping[str, float]: A map of the removed members and their scores, ordered from the one with the highest score to the one with the lowest.
-            If `key` doesn't exist, it will be treated as an empy sorted set and the command returns an empty map.
+            Mapping[bytes, float]: A map of the removed members and their scores, ordered from the one with the highest score to the one with the lowest.
+            If `key` doesn't exist, it will be treated as an empty sorted set and the command returns an empty map.
         """
         return self.append_command(
             RequestType.ZPopMax, [key, str(count)] if count else [key]
         )
 
-    def bzpopmax(self: TTransaction, keys: List[str], timeout: float) -> TTransaction:
+    def bzpopmax(
+        self: TTransaction, keys: List[Union[str, bytes]], timeout: float
+    ) -> TTransaction:
         """
         Pops the member with the highest score from the first non-empty sorted set, with the given keys being checked in
         the order that they are given. Blocks the connection when there are no members to remove from any of the given
@@ -2807,18 +2928,18 @@ class BaseTransaction:
         See https://valkey.io/commands/bzpopmax for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
             timeout (float): The number of seconds to wait for a blocking operation to complete.
                 A value of 0 will block indefinitely.
 
         Command response:
-            Optional[List[Union[str, float]]]: An array containing the key where the member was popped out, the member itself,
+            Optional[List[Union[bytes, float]]]: An array containing the key where the member was popped out, the member itself,
                 and the member score. If no member could be popped and the `timeout` expired, returns None.
         """
         return self.append_command(RequestType.BZPopMax, keys + [str(timeout)])
 
     def zpopmin(
-        self: TTransaction, key: str, count: Optional[int] = None
+        self: TTransaction, key: Union[str, bytes], count: Optional[int] = None
     ) -> TTransaction:
         """
         Removes and returns the members with the lowest scores from the sorted set stored at `key`.
@@ -2828,19 +2949,21 @@ class BaseTransaction:
         See https://redis.io/commands/zpopmin for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             count (Optional[int]): Specifies the quantity of members to pop. If not specified, pops one member.
             If `count` is higher than the sorted set's cardinality, returns all members and their scores.
 
         Commands response:
-            Mapping[str, float]: A map of the removed members and their scores, ordered from the one with the lowest score to the one with the highest.
+            Mapping[Union[bytes, bytes], float]: A map of the removed members and their scores, ordered from the one with the lowest score to the one with the highest.
             If `key` doesn't exist, it will be treated as an empty sorted set and the command returns an empty map.
         """
         return self.append_command(
             RequestType.ZPopMin, [key, str(count)] if count else [key]
         )
 
-    def bzpopmin(self: TTransaction, keys: List[str], timeout: float) -> TTransaction:
+    def bzpopmin(
+        self: TTransaction, keys: List[Union[str, bytes]], timeout: float
+    ) -> TTransaction:
         """
         Pops the member with the lowest score from the first non-empty sorted set, with the given keys being checked in
         the order that they are given. Blocks the connection when there are no members to remove from any of the given
@@ -2853,19 +2976,19 @@ class BaseTransaction:
         See https://valkey.io/commands/bzpopmin for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
             timeout (float): The number of seconds to wait for a blocking operation to complete.
                 A value of 0 will block indefinitely.
 
         Command response:
-            Optional[List[Union[str, float]]]: An array containing the key where the member was popped out, the member itself,
+            Optional[List[Union[bytes, float]]]: An array containing the key where the member was popped out, the member itself,
                 and the member score. If no member could be popped and the `timeout` expired, returns None.
         """
         return self.append_command(RequestType.BZPopMin, keys + [str(timeout)])
 
     def zrange(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         range_query: Union[RangeByIndex, RangeByLex, RangeByScore],
         reverse: bool = False,
     ) -> TTransaction:
@@ -2877,7 +3000,7 @@ class BaseTransaction:
         See https://redis.io/commands/zrange/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             range_query (Union[RangeByIndex, RangeByLex, RangeByScore]): The range query object representing the type of range query to perform.
                 - For range queries by index (rank), use RangeByIndex.
                 - For range queries by lexicographical order, use RangeByLex.
@@ -2885,7 +3008,7 @@ class BaseTransaction:
             reverse (bool): If True, reverses the sorted set, with index 0 as the element with the highest score.
 
         Commands response:
-            List[str]: A list of elements within the specified range.
+            List[bytes]: A list of elements within the specified range.
             If `key` does not exist, it is treated as an empty sorted set, and the command returns an empty array.
         """
         args = _create_zrange_args(key, range_query, reverse, with_scores=False)
@@ -2894,7 +3017,7 @@ class BaseTransaction:
 
     def zrange_withscores(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         range_query: Union[RangeByIndex, RangeByScore],
         reverse: bool = False,
     ) -> TTransaction:
@@ -2905,14 +3028,14 @@ class BaseTransaction:
         See https://redis.io/commands/zrange/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             range_query (Union[RangeByIndex, RangeByScore]): The range query object representing the type of range query to perform.
                 - For range queries by index (rank), use RangeByIndex.
                 - For range queries by score, use RangeByScore.
             reverse (bool): If True, reverses the sorted set, with index 0 as the element with the highest score.
 
         Commands response:
-            Mapping[str , float]: A map of elements and their scores within the specified range.
+            Mapping[bytes , float]: A map of elements and their scores within the specified range.
             If `key` does not exist, it is treated as an empty sorted set, and the command returns an empty map.
         """
         args = _create_zrange_args(key, range_query, reverse, with_scores=True)
@@ -2921,8 +3044,8 @@ class BaseTransaction:
 
     def zrangestore(
         self: TTransaction,
-        destination: str,
-        source: str,
+        destination: Union[str, bytes],
+        source: Union[str, bytes],
         range_query: Union[RangeByIndex, RangeByLex, RangeByScore],
         reverse: bool = False,
     ) -> TTransaction:
@@ -2936,8 +3059,8 @@ class BaseTransaction:
         See https://valkey.io/commands/zrangestore for more details.
 
         Args:
-            destination (str): The key for the destination sorted set.
-            source (str): The key of the source sorted set.
+            destination (Union[str, bytes]): The key for the destination sorted set.
+            source (Union[str, bytes]): The key of the source sorted set.
             range_query (Union[RangeByIndex, RangeByLex, RangeByScore]): The range query object representing the type of range query to perform.
                 - For range queries by index (rank), use RangeByIndex.
                 - For range queries by lexicographical order, use RangeByLex.
@@ -2953,8 +3076,8 @@ class BaseTransaction:
 
     def zrank(
         self: TTransaction,
-        key: str,
-        member: str,
+        key: Union[str, bytes],
+        member: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns the rank of `member` in the sorted set stored at `key`, with scores ordered from low to high.
@@ -2964,8 +3087,8 @@ class BaseTransaction:
         To get the rank of `member` with its score, see `zrank_withscore`.
 
         Args:
-            key (str): The key of the sorted set.
-            member (str): The member whose rank is to be retrieved.
+            key (Union[str, bytes]): The key of the sorted set.
+            member (Union[str, bytes]): The member whose rank is to be retrieved.
 
         Commands response:
             Optional[int]: The rank of `member` in the sorted set.
@@ -2975,8 +3098,8 @@ class BaseTransaction:
 
     def zrank_withscore(
         self: TTransaction,
-        key: str,
-        member: str,
+        key: Union[str, bytes],
+        member: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns the rank of `member` in the sorted set stored at `key` with its score, where scores are ordered from the lowest to highest.
@@ -2984,8 +3107,8 @@ class BaseTransaction:
         See https://redis.io/commands/zrank for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            member (str): The member whose rank is to be retrieved.
+            key (Union[str, bytes]): The key of the sorted set.
+            member (Union[str, bytes]): The member whose rank is to be retrieved.
 
         Commands response:
             Optional[List[Union[int, float]]]: A list containing the rank and score of `member` in the sorted set.
@@ -2995,7 +3118,9 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ZRank, [key, member, "WITHSCORE"])
 
-    def zrevrank(self: TTransaction, key: str, member: str) -> TTransaction:
+    def zrevrank(
+        self: TTransaction, key: Union[str, bytes], member: Union[str, bytes]
+    ) -> TTransaction:
         """
         Returns the rank of `member` in the sorted set stored at `key`, where scores are ordered from the highest to
         lowest, starting from `0`.
@@ -3005,8 +3130,8 @@ class BaseTransaction:
         See https://valkey.io/commands/zrevrank for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            member (str): The member whose rank is to be retrieved.
+            key (Union[str, bytes]): The key of the sorted set.
+            member (Union[str, bytes]): The member whose rank is to be retrieved.
 
         Command response:
             Optional[int]: The rank of `member` in the sorted set, where ranks are ordered from high to low based on scores.
@@ -3014,7 +3139,9 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ZRevRank, [key, member])
 
-    def zrevrank_withscore(self: TTransaction, key: str, member: str) -> TTransaction:
+    def zrevrank_withscore(
+        self: TTransaction, key: Union[str, bytes], member: Union[str, bytes]
+    ) -> TTransaction:
         """
         Returns the rank of `member` in the sorted set stored at `key` with its score, where scores are ordered from the
         highest to lowest, starting from `0`.
@@ -3022,8 +3149,8 @@ class BaseTransaction:
         See https://valkey.io/commands/zrevrank for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            member (str): The member whose rank is to be retrieved.
+            key (Union[str, bytes]): The key of the sorted set.
+            member (Union[str, bytes]): The member whose rank is to be retrieved.
 
         Command response:
             Optional[List[Union[int, float]]]: A list containing the rank (as `int`) and score (as `float`) of `member`
@@ -3036,8 +3163,8 @@ class BaseTransaction:
 
     def zrem(
         self: TTransaction,
-        key: str,
-        members: List[str],
+        key: Union[str, bytes],
+        members: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Removes the specified members from the sorted set stored at `key`.
@@ -3046,8 +3173,8 @@ class BaseTransaction:
         See https://redis.io/commands/zrem/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            members (List[str]): A list of members to remove from the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
+            members (List[Union[str, bytes]]): A list of members to remove from the sorted set.
 
         Commands response:
             int: The number of members that were removed from the sorted set, not including non-existing members.
@@ -3057,7 +3184,7 @@ class BaseTransaction:
 
     def zremrangebyscore(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         min_score: Union[InfBound, ScoreBoundary],
         max_score: Union[InfBound, ScoreBoundary],
     ) -> TTransaction:
@@ -3067,7 +3194,7 @@ class BaseTransaction:
         See https://redis.io/commands/zremrangebyscore/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             min_score (Union[InfBound, ScoreBoundary]): The minimum score to remove from.
                 Can be an instance of InfBound representing positive/negative infinity,
                 or ScoreBoundary representing a specific score and inclusivity.
@@ -3096,7 +3223,7 @@ class BaseTransaction:
 
     def zremrangebylex(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         min_lex: Union[InfBound, LexBoundary],
         max_lex: Union[InfBound, LexBoundary],
     ) -> TTransaction:
@@ -3107,7 +3234,7 @@ class BaseTransaction:
         See https://redis.io/commands/zremrangebylex/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             min_lex (Union[InfBound, LexBoundary]): The minimum bound of the lexicographical range.
                 Can be an instance of `InfBound` representing positive/negative infinity, or `LexBoundary`
                 representing a specific lex and inclusivity.
@@ -3133,7 +3260,7 @@ class BaseTransaction:
 
     def zremrangebyrank(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         start: int,
         end: int,
     ) -> TTransaction:
@@ -3145,7 +3272,7 @@ class BaseTransaction:
         See https://valkey.io/commands/zremrangebyrank/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             start (int): The starting point of the range.
             end (int): The end of the range.
 
@@ -3161,7 +3288,7 @@ class BaseTransaction:
 
     def zlexcount(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         min_lex: Union[InfBound, LexBoundary],
         max_lex: Union[InfBound, LexBoundary],
     ) -> TTransaction:
@@ -3171,7 +3298,7 @@ class BaseTransaction:
         See https://redis.io/commands/zlexcount/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             min_lex (Union[InfBound, LexBoundary]): The minimum lexicographical value to count from.
                 Can be an instance of InfBound representing positive/negative infinity,
                 or LexBoundary representing a specific lexicographical value and inclusivity.
@@ -3195,32 +3322,36 @@ class BaseTransaction:
             RequestType.ZLexCount, [key, min_lex_arg, max_lex_arg]
         )
 
-    def zscore(self: TTransaction, key: str, member: str) -> TTransaction:
+    def zscore(
+        self: TTransaction, key: Union[str, bytes], member: Union[str, bytes]
+    ) -> TTransaction:
         """
         Returns the score of `member` in the sorted set stored at `key`.
 
         See https://redis.io/commands/zscore/ for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            member (str): The member whose score is to be retrieved.
+            key (Union[str, bytes]): The key of the sorted set.
+            member (Union[str, bytes]): The member whose score is to be retrieved.
 
         Commands response:
             Optional[float]: The score of the member.
             If `member` does not exist in the sorted set, None is returned.
-            If `key` does not exist,  None is returned.
+            If `key` does not exist, None is returned.
         """
         return self.append_command(RequestType.ZScore, [key, member])
 
-    def zmscore(self: TTransaction, key: str, members: List[str]) -> TTransaction:
+    def zmscore(
+        self: TTransaction, key: Union[str, bytes], members: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Returns the scores associated with the specified `members` in the sorted set stored at `key`.
 
         See https://valkey.io/commands/zmscore for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            members (List[str]): A list of members in the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
+            members (List[Union[str, bytes]]): A list of members in the sorted set.
 
         Command response:
             List[Optional[float]]: A list of scores corresponding to `members`.
@@ -3228,7 +3359,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ZMScore, [key] + members)
 
-    def zdiff(self: TTransaction, keys: List[str]) -> TTransaction:
+    def zdiff(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Returns the difference between the first sorted set and all the successive sorted sets.
         To get the elements with their scores, see `zdiff_withscores`.
@@ -3236,26 +3367,28 @@ class BaseTransaction:
         See https://valkey.io/commands/zdiff for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
 
         Command response:
-            List[str]: A list of elements representing the difference between the sorted sets.
+            List[bytes]: A list of elements representing the difference between the sorted sets.
                 If the first key does not exist, it is treated as an empty sorted set, and the command returns an
                 empty list.
         """
         return self.append_command(RequestType.ZDiff, [str(len(keys))] + keys)
 
-    def zdiff_withscores(self: TTransaction, keys: List[str]) -> TTransaction:
+    def zdiff_withscores(
+        self: TTransaction, keys: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Returns the difference between the first sorted set and all the successive sorted sets, with the associated scores.
 
         See https://valkey.io/commands/zdiff for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
 
         Command response:
-            Mapping[str, float]: A mapping of elements and their scores representing the difference between the sorted sets.
+            Mapping[bytes, float]: A mapping of elements and their scores representing the difference between the sorted sets.
                 If the first `key` does not exist, it is treated as an empty sorted set, and the command returns an
                 empty list.
         """
@@ -3264,7 +3397,9 @@ class BaseTransaction:
         )
 
     def zdiffstore(
-        self: TTransaction, destination: str, keys: List[str]
+        self: TTransaction,
+        destination: Union[str, bytes],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Calculates the difference between the first sorted set and all the successive sorted sets at `keys` and stores
@@ -3274,8 +3409,8 @@ class BaseTransaction:
         See https://valkey.io/commands/zdiffstore for more details.
 
         Args:
-            destination (str): The key for the resulting sorted set.
-            keys (List[str]): The keys of the sorted sets to compare.
+            destination (Union[str, bytes]): The key for the resulting sorted set.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets to compare.
 
         Command response:
             int: The number of members in the resulting sorted set stored at `destination`.
@@ -3286,7 +3421,7 @@ class BaseTransaction:
 
     def zinter(
         self: TTransaction,
-        keys: List[str],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Computes the intersection of sorted sets given by the specified `keys` and returns a list of intersecting elements.
@@ -3294,16 +3429,16 @@ class BaseTransaction:
         See https://valkey.io/commands/zinter/ for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
 
         Command response:
-            List[str]: The resulting array of intersecting elements.
+            List[bytes]: The resulting array of intersecting elements.
         """
         return self.append_command(RequestType.ZInter, [str(len(keys))] + keys)
 
     def zinter_withscores(
         self: TTransaction,
-        keys: Union[List[str], List[Tuple[str, float]]],
+        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> TTransaction:
         """
@@ -3312,14 +3447,14 @@ class BaseTransaction:
         See https://valkey.io/commands/zinter/ for more details.
 
         Args:
-            keys (Union[List[str], List[Tuple[str, float]]]): The keys of the sorted sets with possible formats:
-                List[str] - for keys only.
-                List[Tuple[str, float]] - for weighted keys with score multipliers.
+            keys (Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]): The keys of the sorted sets with possible formats:
+                List[Union[str, bytes]] - for keys only.
+                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
         Command response:
-            Mapping[str, float]: The resulting sorted set with scores.
+            Mapping[bytes, float]: The resulting sorted set with scores.
         """
         args = _create_zinter_zunion_cmd_args(keys, aggregation_type)
         args.append("WITHSCORES")
@@ -3327,8 +3462,8 @@ class BaseTransaction:
 
     def zinterstore(
         self: TTransaction,
-        destination: str,
-        keys: Union[List[str], List[Tuple[str, float]]],
+        destination: Union[str, bytes],
+        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> TTransaction:
         """
@@ -3340,10 +3475,10 @@ class BaseTransaction:
         See https://valkey.io/commands/zinterstore/ for more details.
 
         Args:
-            destination (str): The key of the destination sorted set.
-            keys (Union[List[str], List[Tuple[str, float]]]): The keys of the sorted sets with possible formats:
-                List[str] - for keys only.
-                List[Tuple[str, float]]] - for weighted keys with score multipliers.
+            destination (Union[str, bytes]): The key of the destination sorted set.
+            keys (Union[List[Union[str, bytes]], List[Tuple[str, float]]]): The keys of the sorted sets with possible formats:
+                List[Union[str, bytes]] - for keys only.
+                List[Tuple[Union[str, bytes], float]]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
@@ -3355,7 +3490,7 @@ class BaseTransaction:
 
     def zunion(
         self: TTransaction,
-        keys: List[str],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Computes the union of sorted sets given by the specified `keys` and returns a list of union elements.
@@ -3363,16 +3498,16 @@ class BaseTransaction:
         See https://valkey.io/commands/zunion/ for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
 
         Command response:
-            List[str]: The resulting array of union elements.
+            List[bytes]: The resulting array of union elements.
         """
         return self.append_command(RequestType.ZUnion, [str(len(keys))] + keys)
 
     def zunion_withscores(
         self: TTransaction,
-        keys: Union[List[str], List[Tuple[str, float]]],
+        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> TTransaction:
         """
@@ -3381,14 +3516,14 @@ class BaseTransaction:
         See https://valkey.io/commands/zunion/ for more details.
 
         Args:
-            keys (Union[List[str], List[Tuple[str, float]]]): The keys of the sorted sets with possible formats:
-                List[str] - for keys only.
-                List[Tuple[str, float]] - for weighted keys with score multipliers.
+            keys (Union[List[Union[str, bytes]], List[Tuple[str, float]]]): The keys of the sorted sets with possible formats:
+                List[Union[str, bytes]] - for keys only.
+                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
         Command response:
-            Mapping[str, float]: The resulting sorted set with scores.
+            Mapping[bytes, float]: The resulting sorted set with scores.
         """
         args = _create_zinter_zunion_cmd_args(keys, aggregation_type)
         args.append("WITHSCORES")
@@ -3396,9 +3531,9 @@ class BaseTransaction:
 
     def zunionstore(
         self: TTransaction,
-        destination: str,
-        keys: Union[List[str], List[Tuple[str, float]]],
-        aggregation_type: Optional[AggregationType] = None,
+        destination: Union[str, bytes],
+        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
+        aggregation_type: Optional[Optional[AggregationType]] = None,
     ) -> TTransaction:
         """
         Computes the union of sorted sets given by the specified `keys` and stores the result in `destination`.
@@ -3406,13 +3541,13 @@ class BaseTransaction:
 
         When in cluster mode, `destination` and all keys in `keys` must map to the same hash slot.
 
-        see https://valkey.io/commands/zunionstore/ for more details.
+        See https://valkey.io/commands/zunionstore/ for more details.
 
         Args:
-            destination (str): The key of the destination sorted set.
-            keys (Union[List[str], List[Tuple[str, float]]]): The keys of the sorted sets with possible formats:
-                List[str] - for keys only.
-                List[Tuple[str, float]]] - for weighted keys with score multipliers.
+            destination (Union[str, bytes]): The key of the destination sorted set.
+            keys (Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]): The keys of the sorted sets with possible formats:
+                List[Union[str, bytes]] - for keys only.
+                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
@@ -3422,41 +3557,43 @@ class BaseTransaction:
         args = _create_zinter_zunion_cmd_args(keys, aggregation_type, destination)
         return self.append_command(RequestType.ZUnionStore, args)
 
-    def zrandmember(self: TTransaction, key: str) -> TTransaction:
+    def zrandmember(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns a random member from the sorted set stored at 'key'.
 
         See https://valkey.io/commands/zrandmember for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
 
         Command response:
-            Optional[str]: A random member from the sorted set.
+            Optional[bytes]: A random member from the sorted set.
                 If the sorted set does not exist or is empty, the response will be None.
         """
         return self.append_command(RequestType.ZRandMember, [key])
 
-    def zrandmember_count(self: TTransaction, key: str, count: int) -> TTransaction:
+    def zrandmember_count(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Retrieves up to the absolute value of `count` random members from the sorted set stored at 'key'.
 
         See https://valkey.io/commands/zrandmember for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             count (int): The number of members to return.
                 If `count` is positive, returns unique members.
                 If `count` is negative, allows for duplicates members.
 
         Command response:
-            List[str]: A list of members from the sorted set.
+            List[bytes]: A list of members from the sorted set.
                 If the sorted set does not exist or is empty, the response will be an empty list.
         """
         return self.append_command(RequestType.ZRandMember, [key, str(count)])
 
     def zrandmember_withscores(
-        self: TTransaction, key: str, count: int
+        self: TTransaction, key: Union[str, bytes], count: int
     ) -> TTransaction:
         """
         Retrieves up to the absolute value of `count` random members along with their scores from the sorted set
@@ -3465,13 +3602,13 @@ class BaseTransaction:
         See https://valkey.io/commands/zrandmember for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             count (int): The number of members to return.
                 If `count` is positive, returns unique members.
                 If `count` is negative, allows for duplicates members.
 
         Command response:
-            List[List[Union[str, float]]]: A list of `[member, score]` lists, where `member` is a random member from
+            List[List[Union[bytes, float]]]: A list of `[member, score]` lists, where `member` is a random member from
                 the sorted set and `score` is the associated score.
                 If the sorted set does not exist or is empty, the response will be an empty list.
         """
@@ -3481,7 +3618,7 @@ class BaseTransaction:
 
     def zmpop(
         self: TTransaction,
-        keys: List[str],
+        keys: List[Union[str, bytes]],
         filter: ScoreFilter,
         count: Optional[int] = None,
     ) -> TTransaction:
@@ -3493,13 +3630,13 @@ class BaseTransaction:
         See https://valkey.io/commands/zmpop for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
             modifier (ScoreFilter): The element pop criteria - either ScoreFilter.MIN or ScoreFilter.MAX to pop
                 members with the lowest/highest scores accordingly.
             count (Optional[int]): The number of elements to pop.
 
         Command response:
-            Optional[List[Union[str, Mapping[str, float]]]]: A two-element list containing the key name of the set from
+            Optional[List[Union[bytes, Mapping[bytes, float]]]]: A two-element list containing the key name of the set from
                 which elements were popped, and a member-score mapping of the popped elements. If no members could be
                 popped, returns None.
 
@@ -3513,7 +3650,7 @@ class BaseTransaction:
 
     def bzmpop(
         self: TTransaction,
-        keys: List[str],
+        keys: List[Union[str, bytes]],
         modifier: ScoreFilter,
         timeout: float,
         count: Optional[int] = None,
@@ -3534,7 +3671,7 @@ class BaseTransaction:
             `BZMPOP` is a client blocking command, see https://github.com/aws/glide-for-redis/wiki/General-Concepts#blocking-commands for more details and best practices.
 
         Args:
-            keys (List[str]): The keys of the sorted sets.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets.
             modifier (ScoreFilter): The element pop criteria - either ScoreFilter.MIN or ScoreFilter.MAX to pop
                 members with the lowest/highest scores accordingly.
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of 0 will
@@ -3542,7 +3679,7 @@ class BaseTransaction:
             count (Optional[int]): The number of elements to pop.
 
         Command response:
-            Optional[List[Union[str, Mapping[str, float]]]]: A two-element list containing the key name of the set from
+            Optional[List[Union[bytes, Mapping[bytes, float]]]]: A two-element list containing the key name of the set from
                 which elements were popped, and a member-score mapping. If no members could be popped and the timeout
                 expired, returns None.
 
@@ -3555,7 +3692,7 @@ class BaseTransaction:
         return self.append_command(RequestType.BZMPop, args)
 
     def zintercard(
-        self: TTransaction, keys: List[str], limit: Optional[int] = None
+        self: TTransaction, keys: List[Union[str, bytes]], limit: Optional[int] = None
     ) -> TTransaction:
         """
         Returns the cardinality of the intersection of the sorted sets specified by `keys`. When provided with the
@@ -3565,7 +3702,7 @@ class BaseTransaction:
         See https://valkey.io/commands/zintercard for more details.
 
         Args:
-            keys (List[str]): The keys of the sorted sets to intersect.
+            keys (List[Union[str, bytes]]): The keys of the sorted sets to intersect.
             limit (Optional[int]): An optional argument that can be used to specify a maximum number for the
                 intersection cardinality. If limit is not supplied, or if it is set to 0, there will be no limit.
 
@@ -3590,7 +3727,9 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.DBSize, [])
 
-    def pfadd(self: TTransaction, key: str, elements: List[str]) -> TTransaction:
+    def pfadd(
+        self: TTransaction, key: Union[str, bytes], elements: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Adds all elements to the HyperLogLog data structure stored at the specified `key`.
         Creates a new structure if the `key` does not exist.
@@ -3599,8 +3738,8 @@ class BaseTransaction:
         See https://redis.io/commands/pfadd/ for more details.
 
         Args:
-            key (str): The key of the HyperLogLog data structure to add elements into.
-            elements (List[str]): A list of members to add to the HyperLogLog stored at `key`.
+            key (Union[str, bytes]): The key of the HyperLogLog data structure to add elements into.
+            elements (List[Union[str, bytes]]): A list of members to add to the HyperLogLog stored at `key`.
 
         Commands response:
             int: If the HyperLogLog is newly created, or if the HyperLogLog approximated cardinality is
@@ -3608,7 +3747,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.PfAdd, [key] + elements)
 
-    def pfcount(self: TTransaction, keys: List[str]) -> TTransaction:
+    def pfcount(self: TTransaction, keys: List[Union[str, bytes]]) -> TTransaction:
         """
         Estimates the cardinality of the data stored in a HyperLogLog structure for a single key or
         calculates the combined cardinality of multiple keys by merging their HyperLogLogs temporarily.
@@ -3616,7 +3755,7 @@ class BaseTransaction:
         See https://valkey.io/commands/pfcount for more details.
 
         Args:
-            keys (List[str]): The keys of the HyperLogLog data structures to be analyzed.
+            keys (List[Union[str, bytes]]): The keys of the HyperLogLog data structures to be analyzed.
 
         Command response:
             int: The approximated cardinality of given HyperLogLog data structures.
@@ -3625,7 +3764,9 @@ class BaseTransaction:
         return self.append_command(RequestType.PfCount, keys)
 
     def pfmerge(
-        self: TTransaction, destination: str, source_keys: List[str]
+        self: TTransaction,
+        destination: Union[str, bytes],
+        source_keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Merges multiple HyperLogLog values into a unique value. If the destination variable exists, it is treated as one
@@ -3634,8 +3775,8 @@ class BaseTransaction:
         See https://valkey.io/commands/pfmerge for more details.
 
         Args:
-            destination (str): The key of the destination HyperLogLog where the merged data sets will be stored.
-            source_keys (List[str]): The keys of the HyperLogLog structures to be merged.
+            destination (Union[str, bytes]): The key of the destination HyperLogLog where the merged data sets will be stored.
+            source_keys (List[Union[str, bytes]]): The keys of the HyperLogLog structures to be merged.
 
         Command response:
             OK: A simple OK response.
@@ -3643,7 +3784,9 @@ class BaseTransaction:
         return self.append_command(RequestType.PfMerge, [destination] + source_keys)
 
     def bitcount(
-        self: TTransaction, key: str, options: Optional[OffsetOptions] = None
+        self: TTransaction,
+        key: Union[str, bytes],
+        options: Optional[OffsetOptions] = None,
     ) -> TTransaction:
         """
         Counts the number of set bits (population counting) in a string stored at `key`. The `options` argument can
@@ -3652,7 +3795,7 @@ class BaseTransaction:
         See https://valkey.io/commands/bitcount for more details.
 
         Args:
-            key (str): The key for the string to count the set bits of.
+            key (Union[str, bytes]): The key for the string to count the set bits of.
             options (Optional[OffsetOptions]): The offset options.
 
         Command response:
@@ -3666,7 +3809,9 @@ class BaseTransaction:
 
         return self.append_command(RequestType.BitCount, args)
 
-    def setbit(self: TTransaction, key: str, offset: int, value: int) -> TTransaction:
+    def setbit(
+        self: TTransaction, key: Union[str, bytes], offset: int, value: int
+    ) -> TTransaction:
         """
         Sets or clears the bit at `offset` in the string value stored at `key`. The `offset` is a zero-based index,
         with `0` being the first element of the list, `1` being the next element, and so on. The `offset` must be less
@@ -3676,7 +3821,7 @@ class BaseTransaction:
         See https://valkey.io/commands/setbit for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             offset (int): The index of the bit to be set.
             value (int): The bit value to set at `offset`. The value must be `0` or `1`.
 
@@ -3685,7 +3830,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.SetBit, [key, str(offset), str(value)])
 
-    def getbit(self: TTransaction, key: str, offset: int) -> TTransaction:
+    def getbit(self: TTransaction, key: Union[str, bytes], offset: int) -> TTransaction:
         """
         Returns the bit value at `offset` in the string value stored at `key`.
         `offset` should be greater than or equal to zero.
@@ -3693,7 +3838,7 @@ class BaseTransaction:
         See https://valkey.io/commands/getbit for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             offset (int): The index of the bit to return.
 
         Command response:
@@ -3703,7 +3848,10 @@ class BaseTransaction:
         return self.append_command(RequestType.GetBit, [key, str(offset)])
 
     def bitpos(
-        self: TTransaction, key: str, bit: int, start: Optional[int] = None
+        self: TTransaction,
+        key: Union[str, bytes],
+        bit: int,
+        start: Optional[int] = None,
     ) -> TTransaction:
         """
         Returns the position of the first bit matching the given `bit` value. The optional starting offset
@@ -3714,7 +3862,7 @@ class BaseTransaction:
         See https://valkey.io/commands/bitpos for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             bit (int): The bit value to match. Must be `0` or `1`.
             start (Optional[int]): The starting offset.
 
@@ -3727,7 +3875,7 @@ class BaseTransaction:
 
     def bitpos_interval(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         bit: int,
         start: int,
         end: int,
@@ -3747,7 +3895,7 @@ class BaseTransaction:
         See https://valkey.io/commands/bitpos for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             bit (int): The bit value to match. Must be `0` or `1`.
             start (int): The starting offset.
             end (int): The ending offset.
@@ -3769,8 +3917,8 @@ class BaseTransaction:
     def bitop(
         self: TTransaction,
         operation: BitwiseOperation,
-        destination: str,
-        keys: List[str],
+        destination: Union[str, bytes],
+        keys: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Perform a bitwise operation between multiple keys (containing string values) and store the result in the
@@ -3780,8 +3928,8 @@ class BaseTransaction:
 
         Args:
             operation (BitwiseOperation): The bitwise operation to perform.
-            destination (str): The key that will store the resulting string.
-            keys (List[str]): The list of keys to perform the bitwise operation on.
+            destination (Union[str, bytes]): The key that will store the resulting string.
+            keys (List[Union[str, bytes]]): The list of keys to perform the bitwise operation on.
 
         Command response:
             int: The size of the string stored in `destination`.
@@ -3791,7 +3939,9 @@ class BaseTransaction:
         )
 
     def bitfield(
-        self: TTransaction, key: str, subcommands: List[BitFieldSubCommands]
+        self: TTransaction,
+        key: Union[str, bytes],
+        subcommands: List[BitFieldSubCommands],
     ) -> TTransaction:
         """
         Reads or modifies the array of bits representing the string that is held at `key` based on the specified
@@ -3800,7 +3950,7 @@ class BaseTransaction:
         See https://valkey.io/commands/bitfield for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             subcommands (List[BitFieldSubCommands]): The subcommands to be performed on the binary value of the string
                 at `key`, which could be any of the following:
                     - `BitFieldGet`
@@ -3821,7 +3971,7 @@ class BaseTransaction:
         return self.append_command(RequestType.BitField, args)
 
     def bitfield_read_only(
-        self: TTransaction, key: str, subcommands: List[BitFieldGet]
+        self: TTransaction, key: Union[str, bytes], subcommands: List[BitFieldGet]
     ) -> TTransaction:
         """
         Reads the array of bits representing the string that is held at `key` based on the specified `subcommands`.
@@ -3829,7 +3979,7 @@ class BaseTransaction:
         See https://valkey.io/commands/bitfield_ro for more details.
 
         Args:
-            key (str): The key of the string.
+            key (Union[str, bytes]): The key of the string.
             subcommands (List[BitFieldGet]): The "GET" subcommands to be performed.
 
         Command response:
@@ -3840,29 +3990,29 @@ class BaseTransaction:
         args = [key] + _create_bitfield_read_only_args(subcommands)
         return self.append_command(RequestType.BitFieldReadOnly, args)
 
-    def object_encoding(self: TTransaction, key: str) -> TTransaction:
+    def object_encoding(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the internal encoding for the Redis object stored at `key`.
 
         See https://valkey.io/commands/object-encoding for more details.
 
         Args:
-            key (str): The `key` of the object to get the internal encoding of.
+            key (Union[str, bytes]): The `key` of the object to get the internal encoding of.
 
         Command response:
-            Optional[str]: If `key` exists, returns the internal encoding of the object stored at
+            Optional[bytes]: If `key` exists, returns the internal encoding of the object stored at
                 `key` as a string. Otherwise, returns None.
         """
         return self.append_command(RequestType.ObjectEncoding, [key])
 
-    def object_freq(self: TTransaction, key: str) -> TTransaction:
+    def object_freq(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the logarithmic access frequency counter of a Redis object stored at `key`.
 
         See https://valkey.io/commands/object-freq for more details.
 
         Args:
-            key (str): The key of the object to get the logarithmic access frequency counter of.
+            key (Union[str, bytes]): The key of the object to get the logarithmic access frequency counter of.
 
         Command response:
             Optional[int]: If `key` exists, returns the logarithmic access frequency counter of the object stored at `key` as an
@@ -3870,28 +4020,28 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ObjectFreq, [key])
 
-    def object_idletime(self: TTransaction, key: str) -> TTransaction:
+    def object_idletime(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the time in seconds since the last access to the value stored at `key`.
 
         See https://valkey.io/commands/object-idletime for more details.
 
         Args:
-            key (str): The key of the object to get the idle time of.
+            key (Union[str, bytes]): The key of the object to get the idle time of.
 
         Command response:
             Optional[int]: If `key` exists, returns the idle time in seconds. Otherwise, returns None.
         """
         return self.append_command(RequestType.ObjectIdleTime, [key])
 
-    def object_refcount(self: TTransaction, key: str) -> TTransaction:
+    def object_refcount(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns the reference count of the object stored at `key`.
 
         See https://valkey.io/commands/object-refcount for more details.
 
         Args:
-            key (str): The key of the object to get the reference count of.
+            key (Union[str, bytes]): The key of the object to get the reference count of.
 
         Command response:
             Optional[int]: If `key` exists, returns the reference count of the object stored at `key` as an integer.
@@ -3899,34 +4049,36 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ObjectRefCount, [key])
 
-    def srandmember(self: TTransaction, key: str) -> TTransaction:
+    def srandmember(self: TTransaction, key: Union[str, bytes]) -> TTransaction:
         """
         Returns a random element from the set value stored at 'key'.
 
         See https://valkey.io/commands/srandmember for more details.
 
         Args:
-            key (str): The key from which to retrieve the set member.
+            key (Union[str, bytes]): The key from which to retrieve the set member.
 
         Command Response:
-            str: A random element from the set, or None if 'key' does not exist.
+            bytes: A random element from the set, or None if 'key' does not exist.
         """
         return self.append_command(RequestType.SRandMember, [key])
 
-    def srandmember_count(self: TTransaction, key: str, count: int) -> TTransaction:
+    def srandmember_count(
+        self: TTransaction, key: Union[str, bytes], count: int
+    ) -> TTransaction:
         """
         Returns one or more random elements from the set value stored at 'key'.
 
         See https://valkey.io/commands/srandmember for more details.
 
         Args:
-            key (str): The key of the sorted set.
+            key (Union[str, bytes]): The key of the sorted set.
             count (int): The number of members to return.
                 If `count` is positive, returns unique members.
                 If `count` is negative, allows for duplicates members.
 
         Command Response:
-            List[str]: A list of members from the set.
+            List[Union[str, bytes]]: A list of members from the set.
                 If the set does not exist or is empty, the response will be an empty list.
         """
         return self.append_command(RequestType.SRandMember, [key, str(count)])
@@ -3969,19 +4121,19 @@ class BaseTransaction:
         return self.append_command(RequestType.FlushDB, args)
 
     def getex(
-        self: TTransaction, key: str, expiry: Optional[ExpiryGetEx] = None
+        self: TTransaction, key: Union[str, bytes], expiry: Optional[ExpiryGetEx] = None
     ) -> TTransaction:
         """
         Get the value of `key` and optionally set its expiration. GETEX is similar to GET.
         See https://valkey.io/commands/getex for more details.
 
         Args:
-            key (str): The key to get.
+            key (Union[str, bytes]): The key to get.
             expiry (Optional[ExpirySet], optional): set expiriation to the given key.
                 Equivalent to [`EX` | `PX` | `EXAT` | `PXAT` | `PERSIST`] in the Redis API.
 
         Command Response:
-            Optional[str]:
+            Optional[bytes]:
                 If `key` exists, return the value stored at `key`
                 If 'key` does not exist, return 'None'
 
@@ -4295,14 +4447,14 @@ class Transaction(BaseTransaction):
     """
 
     # TODO: add SLAVEOF and all SENTINEL commands
-    def move(self, key: str, db_index: int) -> "Transaction":
+    def move(self, key: Union[str, bytes], db_index: int) -> "Transaction":
         """
         Move `key` from the currently selected database to the database specified by `db_index`.
 
         See https://valkey.io/commands/move/ for more details.
 
         Args:
-            key (str): The key to move.
+            key (Union[str, bytes]): The key to move.
             db_index (int): The index of the database to move `key` to.
 
         Commands response:
@@ -4326,10 +4478,10 @@ class Transaction(BaseTransaction):
 
     def sort(
         self: TTransaction,
-        key: str,
-        by_pattern: Optional[str] = None,
+        key: Union[str, bytes],
+        by_pattern: Optional[Union[str, bytes]] = None,
         limit: Optional[Limit] = None,
-        get_patterns: Optional[List[str]] = None,
+        get_patterns: Optional[List[Union[str, bytes]]] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
     ) -> TTransaction:
@@ -4341,8 +4493,8 @@ class Transaction(BaseTransaction):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
-            by_pattern (Optional[str]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
+            by_pattern (Optional[Union[str, bytes]]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from the key replaces the asterisk to create the key name. For example, if `key` contains IDs of objects,
                 `by_pattern` can be used to sort these IDs based on an attribute of the objects, like their weights or
@@ -4351,7 +4503,7 @@ class Transaction(BaseTransaction):
                 keys `weight_<element>`.
                 If not provided, elements are sorted by their value.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
-            get_pattern (Optional[str]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
+            get_pattern (Optional[Union[str, bytes]]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from `key` replaces the asterisk to create the key name. This allows the sorted elements to be
                 transformed based on the related keys values. For example, if `key` contains IDs of users, `get_pattern`
@@ -4366,18 +4518,18 @@ class Transaction(BaseTransaction):
                 Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point numbers.
 
         Command response:
-            List[Optional[str]]: Returns a list of sorted elements.
+            List[Optional[bytes]]: Returns a list of sorted elements.
         """
         args = _build_sort_args(key, by_pattern, limit, get_patterns, order, alpha)
         return self.append_command(RequestType.Sort, args)
 
     def sort_store(
         self: TTransaction,
-        key: str,
-        destination: str,
-        by_pattern: Optional[str] = None,
+        key: Union[str, bytes],
+        destination: Union[str, bytes],
+        by_pattern: Optional[Union[str, bytes]] = None,
         limit: Optional[Limit] = None,
-        get_patterns: Optional[List[str]] = None,
+        get_patterns: Optional[List[Union[str, bytes]]] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
     ) -> TTransaction:
@@ -4389,9 +4541,9 @@ class Transaction(BaseTransaction):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
-            destination (str): The key where the sorted result will be stored.
-            by_pattern (Optional[str]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
+            destination (Union[str, bytes]): The key where the sorted result will be stored.
+            by_pattern (Optional[Union[str, bytes]]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from the key replaces the asterisk to create the key name. For example, if `key` contains IDs of objects,
                 `by_pattern` can be used to sort these IDs based on an attribute of the objects, like their weights or
@@ -4400,7 +4552,7 @@ class Transaction(BaseTransaction):
                 keys `weight_<element>`.
                 If not provided, elements are sorted by their value.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
-            get_pattern (Optional[str]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
+            get_pattern (Optional[Union[str, bytes]]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from `key` replaces the asterisk to create the key name. This allows the sorted elements to be
                 transformed based on the related keys values. For example, if `key` contains IDs of users, `get_pattern`
@@ -4468,7 +4620,7 @@ class ClusterTransaction(BaseTransaction):
 
     def sort(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         limit: Optional[Limit] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
@@ -4480,7 +4632,7 @@ class ClusterTransaction(BaseTransaction):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
             order (Optional[OrderBy]): Specifies the order to sort the elements.
                 Can be `OrderBy.ASC` (ascending) or `OrderBy.DESC` (descending).
@@ -4488,15 +4640,15 @@ class ClusterTransaction(BaseTransaction):
                 Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point numbers.
 
         Command response:
-            List[str]: A list of sorted elements.
+            List[bytes]: A list of sorted elements.
         """
         args = _build_sort_args(key, None, limit, None, order, alpha)
         return self.append_command(RequestType.Sort, args)
 
     def sort_store(
         self: TTransaction,
-        key: str,
-        destination: str,
+        key: Union[str, bytes],
+        destination: Union[str, bytes],
         limit: Optional[Limit] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
@@ -4509,8 +4661,8 @@ class ClusterTransaction(BaseTransaction):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
-            destination (str): The key where the sorted result will be stored.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
+            destination (Union[str, bytes]): The key where the sorted result will be stored.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
             order (Optional[OrderBy]): Specifies the order to sort the elements.
                 Can be `OrderBy.ASC` (ascending) or `OrderBy.DESC` (descending).

@@ -25,6 +25,9 @@ TResult = Union[
     bytes,
     Dict[bytes, "TResult"],
     Mapping[bytes, "TResult"],
+    bytes,
+    Dict[bytes, "TResult"],
+    Mapping[bytes, "TResult"],
 ]
 TRequest = Union[RedisRequest, ConnectionRequest]
 # When routing to a single node, response will be T

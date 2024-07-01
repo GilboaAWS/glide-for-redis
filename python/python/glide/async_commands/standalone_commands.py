@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Mapping, Optional, cast
+from typing import Dict, List, Mapping, Optional, Union, cast
 
 from glide.async_commands.command_args import Limit, OrderBy
 from glide.async_commands.core import (
@@ -12,12 +12,13 @@ from glide.async_commands.core import (
     _build_sort_args,
 )
 from glide.async_commands.transaction import BaseTransaction, Transaction
+from glide.async_commands.utils.utils import convert_bytes_to_string_dict
 from glide.constants import OK, TOK, TResult
 from glide.protobuf.redis_request_pb2 import RequestType
 
 
 class StandaloneCommands(CoreCommands):
-    async def custom_command(self, command_args: List[str]) -> TResult:
+    async def custom_command(self, command_args: List[Union[str, bytes]]) -> TResult:
         """
         Executes a single command, without checking inputs.
         See the [Glide for Redis Wiki](https://github.com/aws/glide-for-redis/wiki/General-Concepts#custom-command)
@@ -27,7 +28,7 @@ class StandaloneCommands(CoreCommands):
 
                 connection.customCommand(["CLIENT", "LIST","TYPE", "PUBSUB"])
         Args:
-            command_args (List[str]): List of strings of the command's arguments.
+            command_args (List[Union[str, bytes]]): List of strings or bytes of the command's arguments.
             Every part of the command, including the command name and subcommands, should be added as a separate value in args.
 
         Returns:
@@ -56,14 +57,14 @@ class StandaloneCommands(CoreCommands):
 
     async def exec(
         self,
-        transaction: BaseTransaction | Transaction,
+        transaction: Union[BaseTransaction, Transaction],
     ) -> Optional[List[TResult]]:
         """
         Execute a transaction by processing the queued commands.
         See https://redis.io/topics/Transactions/ for details on Redis Transactions.
 
         Args:
-            transaction (Transaction): A Transaction object containing a list of commands to be executed.
+            transaction (Union[BaseTransaction, Transaction]): A Transaction object containing a list of commands to be executed.
 
         Returns:
             Optional[List[TResult]]: A list of results corresponding to the execution of each command
@@ -74,16 +75,16 @@ class StandaloneCommands(CoreCommands):
         commands = transaction.commands[:]
         return await self._execute_transaction(commands)
 
-    async def select(self, index: int) -> TOK:
+    async def select(self, index: Union[int, str, bytes]) -> TOK:
         """
         Change the currently selected Redis database.
         See https://redis.io/commands/select/ for details.
 
         Args:
-            index (int): The index of the database to select.
+            index (Union[int, str, bytes]): The index of the database to select.
 
         Returns:
-            A simple OK response.
+            TOK: A simple OK response.
         """
         return cast(TOK, await self._execute_command(RequestType.Select, [str(index)]))
 
@@ -93,7 +94,7 @@ class StandaloneCommands(CoreCommands):
         See https://redis.io/commands/config-resetstat/ for details.
 
         Returns:
-            OK: Returns "OK" to confirm that the statistics were successfully reset.
+            TOK: Returns "OK" to confirm that the statistics were successfully reset.
         """
         return cast(TOK, await self._execute_command(RequestType.ConfigResetStat, []))
 
@@ -103,7 +104,7 @@ class StandaloneCommands(CoreCommands):
         See https://redis.io/commands/config-rewrite/ for details.
 
         Returns:
-            OK: OK is returned when the configuration was rewritten properly. Otherwise, an error is raised.
+            TOK: OK is returned when the configuration was rewritten properly. Otherwise, an error is raised.
         """
         return cast(TOK, await self._execute_command(RequestType.ConfigRewrite, []))
 
@@ -119,86 +120,89 @@ class StandaloneCommands(CoreCommands):
         """
         return cast(int, await self._execute_command(RequestType.ClientId, []))
 
-    async def ping(self, message: Optional[str] = None) -> str:
+    async def ping(self, message: Optional[Union[str, bytes]] = None) -> bytes:
         """
         Ping the Redis server.
         See https://redis.io/commands/ping/ for more details.
 
         Args:
-           message (Optional[str]): An optional message to include in the PING command. If not provided,
+           message (Optional[Union[str, bytes]]): An optional message to include in the PING command. If not provided,
             the server will respond with "PONG". If provided, the server will respond with a copy of the message.
 
         Returns:
-           str: "PONG" if `message` is not provided, otherwise return a copy of `message`.
+           bytes: b"PONG" if `message` is not provided, otherwise return a copy of `message`.
 
         Examples:
             >>> await client.ping()
-            "PONG"
-            >>> await client.ping("Hello")
-            "Hello"
+            b"PONG"
+            >>> await client.ping(b"Hello")
+            b"Hello"
         """
         argument = [] if message is None else [message]
-        return cast(str, await self._execute_command(RequestType.Ping, argument))
+        return cast(bytes, await self._execute_command(RequestType.Ping, argument))
 
-    async def config_get(self, parameters: List[str]) -> Dict[str, str]:
+    async def config_get(
+        self, parameters: List[Union[str, bytes]]
+    ) -> Dict[bytes, bytes]:
         """
         Get the values of configuration parameters.
         See https://redis.io/commands/config-get/ for details.
 
         Args:
-            parameters (List[str]): A list of configuration parameter names to retrieve values for.
+            parameters (List[Union[str, bytes]]): A list of configuration parameter names to retrieve values for.
 
         Returns:
-            Dict[str, str]: A dictionary of values corresponding to the configuration parameters.
+            Dict[bytes, bytes]: A dictionary of values corresponding to the configuration parameters.
 
         Examples:
-            >>> await client.config_get(["timeout"] , RandomNode())
-            {'timeout': '1000'}
-            >>> await client.config_get(["timeout" , "maxmemory"])
-            {'timeout': '1000', "maxmemory": "1GB"}
-
+            >>> await client.config_get([b"timeout"])
+            {b'timeout': b'1000'}
+            >>> await client.config_get([b"timeout", b"maxmemory"])
+            {b'timeout': b'1000', b'maxmemory': b'1GB'}
         """
         return cast(
             Dict[str, str],
             await self._execute_command(RequestType.ConfigGet, parameters),
         )
 
-    async def config_set(self, parameters_map: Mapping[str, str]) -> TOK:
+    async def config_set(
+        self, parameters_map: Mapping[Union[str, bytes], Union[str, bytes]]
+    ) -> TOK:
         """
         Set configuration parameters to the specified values.
         See https://redis.io/commands/config-set/ for details.
 
         Args:
-            parameters_map (Mapping[str, str]): A map consisting of configuration
+            parameters_map (Mapping[Union[str, bytes], Union[str, bytes]]): A map consisting of configuration
             parameters and their respective values to set.
 
         Returns:
-            OK: Returns OK if all configurations have been successfully set. Otherwise, raises an error.
+            TOK: Returns OK if all configurations have been successfully set. Otherwise, raises an error.
 
         Examples:
-            >>> config_set({"timeout": "1000", "maxmemory": "1GB"})
+            >>> config_set({b"timeout": b"1000", b"maxmemory": b"1GB"})
             OK
         """
-        parameters: List[str] = []
+        parameters: List[Union[str, bytes]] = []
         for pair in parameters_map.items():
             parameters.extend(pair)
         return cast(TOK, await self._execute_command(RequestType.ConfigSet, parameters))
 
-    async def client_getname(self) -> Optional[str]:
+    async def client_getname(self) -> Optional[bytes]:
         """
         Get the name of the primary's connection.
         See https://redis.io/commands/client-getname/ for more details.
 
         Returns:
-            Optional[str]: Returns the name of the client connection as a string if a name is set,
+            Optional[bytes]: Returns the name of the client connection as a byte string if a name is set,
             or None if no name is assigned.
 
         Examples:
             >>> await client.client_getname()
-            'Connection Name'
+            b'Connection Name'
         """
         return cast(
-            Optional[str], await self._execute_command(RequestType.ClientGetName, [])
+            Optional[bytes], await self._execute_command(RequestType.ClientGetName, [])
         )
 
     async def dbsize(self) -> int:
@@ -215,23 +219,23 @@ class StandaloneCommands(CoreCommands):
         """
         return cast(int, await self._execute_command(RequestType.DBSize, []))
 
-    async def echo(self, message: str) -> str:
+    async def echo(self, message: Union[str, bytes]) -> bytes:
         """
         Echoes the provided `message` back.
 
         See https://redis.io/commands/echo for more details.
 
         Args:
-            message (str): The message to be echoed back.
+            message (Union[str, bytes]): The message to be echoed back.
 
         Returns:
-            str: The provided `message`.
+            bytes: The provided `message`.
 
         Examples:
-            >>> await client.echo("Glide-for-Redis")
-                'Glide-for-Redis'
+            >>> await client.echo(b"Glide-for-Redis")
+                b'Glide-for-Redis'
         """
-        return cast(str, await self._execute_command(RequestType.Echo, [message]))
+        return cast(bytes, await self._execute_command(RequestType.Echo, [message]))
 
     async def function_load(self, library_code: str, replace: bool = False) -> str:
         """
@@ -314,23 +318,23 @@ class StandaloneCommands(CoreCommands):
             ),
         )
 
-    async def time(self) -> List[str]:
+    async def time(self) -> List[bytes]:
         """
         Returns the server time.
 
         See https://redis.io/commands/time/ for more details.
 
         Returns:
-            List[str]:  The current server time as a two items `array`:
+            List[bytes]:  The current server time as a two items `array`:
             A Unix timestamp and the amount of microseconds already elapsed in the current second.
             The returned `array` is in a [Unix timestamp, Microseconds already elapsed] format.
 
         Examples:
             >>> await client.time()
-            ['1710925775', '913580']
+            [b'1710925775', b'913580']
         """
         return cast(
-            List[str],
+            List[bytes],
             await self._execute_command(RequestType.Time, []),
         )
 
@@ -352,14 +356,14 @@ class StandaloneCommands(CoreCommands):
             await self._execute_command(RequestType.LastSave, []),
         )
 
-    async def move(self, key: str, db_index: int) -> bool:
+    async def move(self, key: Union[str, bytes], db_index: int) -> bool:
         """
         Move `key` from the currently selected database to the database specified by `db_index`.
 
-        See https://valkey.io/commands/move/ for more details.
+        See https://redis.io/commands/move/ for more details.
 
         Args:
-            key (str): The key to move.
+            key (Union[str, bytes]): The key to move.
             db_index (int): The index of the database to move `key` to.
 
         Returns:
@@ -377,13 +381,13 @@ class StandaloneCommands(CoreCommands):
 
     async def sort(
         self,
-        key: str,
-        by_pattern: Optional[str] = None,
+        key: Union[str, bytes],
+        by_pattern: Optional[Union[str, bytes]] = None,
         limit: Optional[Limit] = None,
-        get_patterns: Optional[List[str]] = None,
+        get_patterns: Optional[List[Union[str, bytes]]] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
-    ) -> List[Optional[str]]:
+    ) -> List[Optional[bytes]]:
         """
         Sorts the elements in the list, set, or sorted set at `key` and returns the result.
         The `sort` command can be used to sort elements based on different criteria and apply transformations on sorted elements.
@@ -392,8 +396,8 @@ class StandaloneCommands(CoreCommands):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
-            by_pattern (Optional[str]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
+            by_pattern (Optional[Union[str, bytes]]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from the key replaces the asterisk to create the key name. For example, if `key` contains IDs of objects,
                 `by_pattern` can be used to sort these IDs based on an attribute of the objects, like their weights or
@@ -402,49 +406,49 @@ class StandaloneCommands(CoreCommands):
                 keys `weight_<element>`.
                 If not provided, elements are sorted by their value.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
-            get_pattern (Optional[str]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
+            get_patterns (Optional[List[Union[str, bytes]]]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from `key` replaces the asterisk to create the key name. This allows the sorted elements to be
-                transformed based on the related keys values. For example, if `key` contains IDs of users, `get_pattern`
+                transformed based on the related keys values. For example, if `key` contains IDs of users, `get_patterns`
                 can be used to retrieve specific attributes of these users, such as their names or email addresses.
-                E.g., if `get_pattern` is `name_*`, the command will return the values of the keys `name_<element>`
-                for each sorted element. Multiple `get_pattern` arguments can be provided to retrieve multiple attributes.
+                E.g., if `get_patterns` is `name_*`, the command will return the values of the keys `name_<element>`
+                for each sorted element. Multiple `get_patterns` arguments can be provided to retrieve multiple attributes.
                 The special value `#` can be used to include the actual element from `key` being sorted.
                 If not provided, only the sorted elements themselves are returned.
             order (Optional[OrderBy]): Specifies the order to sort the elements.
                 Can be `OrderBy.ASC` (ascending) or `OrderBy.DESC` (descending).
             alpha (Optional[bool]): When `True`, sorts elements lexicographically. When `False` (default), sorts elements numerically.
-                Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point
+                Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point.
 
         Returns:
-            List[Optional[str]]: Returns a list of sorted elements.
+            List[Optional[bytes]]: Returns a list of sorted elements.
 
         Examples:
             >>> await client.lpush("mylist", 3, 1, 2)
             >>> await client.sort("mylist")
-            ['1', '2', '3']
+            [b'1', b'2', b'3']
             >>> await client.sort("mylist", order=OrderBy.DESC)
-            ['3', '2', '1']
+            [b'3', b'2', b'1']
             >>> await client.lpush("mylist2", 2, 1, 2, 3, 3, 1)
             >>> await client.sort("mylist2", limit=Limit(2, 3))
-            ['2', '2', '3']
+            [b'2', b'2', b'3']
             >>> await client.hset("user:1", "name", "Alice", "age", 30)
             >>> await client.hset("user:2", "name", "Bob", "age", 25)
             >>> await client.lpush("user_ids", 2, 1)
             >>> await client.sort("user_ids", by_pattern="user:*->age", get_patterns=["user:*->name"])
-            ['Bob', 'Alice']
+            [b'Bob', b'Alice']
         """
         args = _build_sort_args(key, by_pattern, limit, get_patterns, order, alpha)
         result = await self._execute_command(RequestType.Sort, args)
-        return cast(List[Optional[str]], result)
+        return cast(List[Optional[bytes]], result)
 
     async def sort_store(
         self,
-        key: str,
-        destination: str,
-        by_pattern: Optional[str] = None,
+        key: Union[str, bytes],
+        destination: Union[str, bytes],
+        by_pattern: Optional[Union[str, bytes]] = None,
         limit: Optional[Limit] = None,
-        get_patterns: Optional[List[str]] = None,
+        get_patterns: Optional[List[Union[str, bytes]]] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
     ) -> int:
@@ -456,9 +460,9 @@ class StandaloneCommands(CoreCommands):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
-            destination (str): The key where the sorted result will be stored.
-            by_pattern (Optional[str]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
+            destination (Union[str, bytes]): The key where the sorted result will be stored.
+            by_pattern (Optional[Union[str, bytes]]): A pattern to sort by external keys instead of by the elements stored at the key themselves.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from the key replaces the asterisk to create the key name. For example, if `key` contains IDs of objects,
                 `by_pattern` can be used to sort these IDs based on an attribute of the objects, like their weights or
@@ -467,19 +471,19 @@ class StandaloneCommands(CoreCommands):
                 keys `weight_<element>`.
                 If not provided, elements are sorted by their value.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
-            get_pattern (Optional[str]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
+            get_patterns (Optional[List[Union[str, bytes]]]): A pattern used to retrieve external keys' values, instead of the elements at `key`.
                 The pattern should contain an asterisk (*) as a placeholder for the element values, where the value
                 from `key` replaces the asterisk to create the key name. This allows the sorted elements to be
-                transformed based on the related keys values. For example, if `key` contains IDs of users, `get_pattern`
+                transformed based on the related keys values. For example, if `key` contains IDs of users, `get_patterns`
                 can be used to retrieve specific attributes of these users, such as their names or email addresses.
-                E.g., if `get_pattern` is `name_*`, the command will return the values of the keys `name_<element>`
-                for each sorted element. Multiple `get_pattern` arguments can be provided to retrieve multiple attributes.
+                E.g., if `get_patterns` is `name_*`, the command will return the values of the keys `name_<element>`
+                for each sorted element. Multiple `get_patterns` arguments can be provided to retrieve multiple attributes.
                 The special value `#` can be used to include the actual element from `key` being sorted.
                 If not provided, only the sorted elements themselves are returned.
             order (Optional[OrderBy]): Specifies the order to sort the elements.
                 Can be `OrderBy.ASC` (ascending) or `OrderBy.DESC` (descending).
             alpha (Optional[bool]): When `True`, sorts elements lexicographically. When `False` (default), sorts elements numerically.
-                Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point
+                Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point.
 
         Returns:
             int: The number of elements in the sorted key stored at `store`.
@@ -489,7 +493,7 @@ class StandaloneCommands(CoreCommands):
             >>> await client.sort_store("mylist", "sorted_list")
             3  # Indicates that the sorted list "sorted_list" contains three elements.
             >>> await client.lrange("sorted_list", 0, -1)
-            ['1', '2', '3']
+            [b'1', b'2', b'3']
         """
         args = _build_sort_args(
             key, by_pattern, limit, get_patterns, order, alpha, store=destination
@@ -497,20 +501,22 @@ class StandaloneCommands(CoreCommands):
         result = await self._execute_command(RequestType.Sort, args)
         return cast(int, result)
 
-    async def publish(self, message: str, channel: str) -> TOK:
+    async def publish(
+        self, message: Union[str, bytes], channel: Union[str, bytes]
+    ) -> TOK:
         """
         Publish a message on pubsub channel.
         See https://valkey.io/commands/publish for more details.
 
         Args:
-            message (str): Message to publish
-            channel (str): Channel to publish the message on.
+            message (Union[str, bytes]): Message to publish
+            channel (Union[str, bytes]): Channel to publish the message on.
 
         Returns:
             TOK: a simple `OK` response.
 
         Examples:
-            >>> await client.publish("Hi all!", "global-channel")
+            >>> await client.publish(b"Hi all!", b"global-channel")
                 "OK"
         """
         await self._execute_command(RequestType.Publish, [channel, message])

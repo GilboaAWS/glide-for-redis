@@ -278,12 +278,12 @@ class GeoSearchCount:
 
 
 def _create_zrange_args(
-    key: str,
+    key: Union[str, bytes],
     range_query: Union[RangeByLex, RangeByScore, RangeByIndex],
     reverse: bool,
     with_scores: bool,
-    destination: Optional[str] = None,
-) -> List[str]:
+    destination: Optional[Union[str, bytes]] = None,
+) -> List[Union[str, bytes]]:
     args = [destination] if destination else []
     args += [key, str(range_query.start), str(range_query.stop)]
 
@@ -308,7 +308,7 @@ def _create_zrange_args(
 
 
 def separate_keys(
-    keys: Union[List[str], List[Tuple[str, float]]]
+    keys: Union[List[bytes], List[Tuple[bytes, float]]]
 ) -> Tuple[List[str], List[str]]:
     """
     Returns seperate lists of keys and weights in case of weighted keys.
@@ -329,10 +329,10 @@ def separate_keys(
 
 
 def _create_zinter_zunion_cmd_args(
-    keys: Union[List[str], List[Tuple[str, float]]],
+    keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
     aggregation_type: Optional[AggregationType] = None,
-    destination: Optional[str] = None,
-) -> List[str]:
+    destination: Optional[Union[str, bytes]] = None,
+) -> List[Union[str, bytes]]:
     args = []
 
     if destination:
@@ -356,8 +356,8 @@ def _create_zinter_zunion_cmd_args(
 
 
 def _create_geosearch_args(
-    keys: List[str],
-    search_from: Union[str, GeospatialData],
+    keys: List[Union[str, bytes]],
+    search_from: Union[str, bytes, GeospatialData],
     seach_by: Union[GeoSearchByRadius, GeoSearchByBox],
     order_by: Optional[OrderBy] = None,
     count: Optional[GeoSearchCount] = None,
@@ -365,9 +365,9 @@ def _create_geosearch_args(
     with_dist: bool = False,
     with_hash: bool = False,
     store_dist: bool = False,
-) -> List[str]:
+) -> List[Union[str, bytes]]:
     args = keys
-    if isinstance(search_from, str):
+    if isinstance(search_from, str | bytes):
         args += ["FROMMEMBER", search_from]
     else:
         args += [

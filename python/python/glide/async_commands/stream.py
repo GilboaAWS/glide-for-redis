@@ -251,7 +251,7 @@ class StreamReadOptions:
         self.block_ms = block_ms
         self.count = count
 
-    def to_args(self) -> List[str]:
+    def to_args(self) -> List[Union[str, bytes]]:
         """
         Returns the options as a list of string arguments to be used in the `XREAD` command.
 
@@ -360,13 +360,13 @@ class StreamPendingOptions:
 
 
 def _create_xpending_range_args(
-    key: str,
-    group_name: str,
+    key: Union[str, bytes],
+    group_name: Union[str, bytes],
     start: StreamRangeBound,
     end: StreamRangeBound,
     count: int,
     options: Optional[StreamPendingOptions],
-) -> List[str]:
+) -> List[Union[str, bytes]]:
     args = [key, group_name]
     if options is not None and options.min_idle_time is not None:
         args.extend([options.IDLE_TIME_REDIS_API, str(options.min_idle_time)])

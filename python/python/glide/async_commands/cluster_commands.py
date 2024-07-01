@@ -19,7 +19,7 @@ from glide.routes import Route
 
 class ClusterCommands(CoreCommands):
     async def custom_command(
-        self, command_args: List[str], route: Optional[Route] = None
+        self, command_args: List[Union[str, bytes]], route: Optional[Route] = None
     ) -> TResult:
         """
         Executes a single command, without checking inputs.
@@ -30,7 +30,7 @@ class ClusterCommands(CoreCommands):
 
                 connection.customCommand(["CLIENT", "LIST","TYPE", "PUBSUB"], AllNodes())
         Args:
-            command_args (List[str]): List of strings of the command's arguments.
+            command_args (List[Union[str, bytes]]): List of strings of the command's arguments.
             Every part of the command, including the command name and subcommands, should be added as a separate value in args.
             route (Optional[Route]): The command will be routed automatically based on the passed command's default request policy, unless `route` is provided, in which
             case the client will route the command to the nodes defined by `route`. Defaults to None.
@@ -58,12 +58,11 @@ class ClusterCommands(CoreCommands):
             case the client will route the command to the nodes defined by `route`. Defaults to None.
 
         Returns:
-            TClusterResponse[str]: If a single node route is requested, returns a string containing the information for
-            the required sections. Otherwise, returns a dict of strings, with each key containing the address of
+            TClusterResponse[bytes]: If a single node route is requested, returns a bytes string containing the information for
+            the required sections. Otherwise, returns a dict of bytes strings, with each key containing the address of
             the queried node and value containing the information regarding the requested sections.
         """
         args = [section.value for section in sections] if sections else []
-
         return cast(
             TClusterResponse[bytes],
             await self._execute_command(RequestType.Info, args, route),
@@ -121,7 +120,7 @@ class ClusterCommands(CoreCommands):
         See https://redis.io/commands/config-rewrite/ for details.
 
         Args:
-            route (Optional[TRoute]): The command will be routed automatically to all nodes, unless `route` is provided, in which
+            route (Optional[Route]): The command will be routed automatically to all nodes, unless `route` is provided, in which
             case the client will route the command to the nodes defined by `route`. Defaults to None.
 
         Returns:
@@ -150,7 +149,7 @@ class ClusterCommands(CoreCommands):
         Returns:
             TClusterResponse[int]: The id of the client.
             If a single node route is requested, returns a int representing the client's id.
-            Otherwise, returns a dict of [str , int] where each key contains the address of
+            Otherwise, returns a dict of [bytes , int] where each key contains the address of
             the queried node and the value contains the client's id.
         """
         return cast(
@@ -159,70 +158,74 @@ class ClusterCommands(CoreCommands):
         )
 
     async def ping(
-        self, message: Optional[str] = None, route: Optional[Route] = None
-    ) -> str:
+        self, message: Optional[Union[str, bytes]] = None, route: Optional[Route] = None
+    ) -> bytes:
         """
         Ping the Redis server.
         See https://redis.io/commands/ping/ for more details.
 
         Args:
-            message (Optional[str]): An optional message to include in the PING command. If not provided,
+            message (Optional[Union[str, bytes]]): An optional message to include in the PING command. If not provided,
             the server will respond with "PONG". If provided, the server will respond with a copy of the message
 
             route (Optional[Route]): The command will be sent to all primaries, unless `route` is provided, in which
             case the client will route the command to the nodes defined by `route`
 
         Returns:
-           str: "PONG" if `message` is not provided, otherwise return a copy of `message`.
+           bytes: "PONG" if `message` is not provided, otherwise return a copy of `message`.
 
         Examples:
             >>> await client.ping()
-            "PONG"
+            b"PONG"
             >>> await client.ping("Hello")
-            "Hello"
+            b"Hello"
         """
         argument = [] if message is None else [message]
-        return cast(str, await self._execute_command(RequestType.Ping, argument, route))
+        return cast(
+            bytes, await self._execute_command(RequestType.Ping, argument, route)
+        )
 
     async def config_get(
-        self, parameters: List[str], route: Optional[Route] = None
-    ) -> TClusterResponse[Dict[str, str]]:
+        self, parameters: List[Union[str, bytes]], route: Optional[Route] = None
+    ) -> TClusterResponse[Dict[bytes, bytes]]:
         """
         Get the values of configuration parameters.
         See https://redis.io/commands/config-get/ for details.
 
         Args:
-            parameters (List[str]): A list of configuration parameter names to retrieve values for.
+            parameters (List[Union[str, bytes]]): A list of configuration parameter names to retrieve values for.
 
             route (Optional[Route]): The command will be routed to a random node, unless `route` is provided,
             in which case the client will route the command to the nodes defined by `route`.
 
         Returns:
-            TClusterResponse[Dict[str, str]]: A dictionary of values corresponding to the
+            TClusterResponse[Dict[bytes, bytes]]: A dictionary of values corresponding to the
             configuration parameters.
-            When specifying a route other than a single node, response will be : {Address (str) : response (Dict[str, str]) , ... }
-            with type of Dict[str, Dict[str, str]].
+            When specifying a route other than a single node, response will be : {Address (bytes) : response (Dict[bytes, bytes]) , ... }
+            with type of Dict[bytes, Dict[bytes, bytes]].
 
         Examples:
             >>> await client.config_get(["timeout"] , RandomNode())
-            {'timeout': '1000'}
+            {b'timeout': b'1000'}
             >>> await client.config_get(["timeout" , "maxmemory"])
-            {'timeout': '1000', "maxmemory": "1GB"}
+            {b'timeout': b'1000', b"maxmemory": b"1GB"}
         """
         return cast(
-            TClusterResponse[Dict[str, str]],
+            TClusterResponse[Dict[bytes, bytes]],
             await self._execute_command(RequestType.ConfigGet, parameters, route),
         )
 
     async def config_set(
-        self, parameters_map: Mapping[str, str], route: Optional[Route] = None
+        self,
+        parameters_map: Mapping[Union[str, bytes], Union[str, bytes]],
+        route: Optional[Route] = None,
     ) -> TOK:
         """
         Set configuration parameters to the specified values.
         See https://redis.io/commands/config-set/ for details.
 
         Args:
-            parameters_map (Mapping[str, str]): A map consisting of configuration
+            parameters_map (Mapping[Union[str, bytes], Union[str, bytes]]): A map consisting of configuration
             parameters and their respective values to set.
 
             route (Optional[Route]): The command will be routed to all nodes, unless `route` is provided,
@@ -232,10 +235,10 @@ class ClusterCommands(CoreCommands):
             OK: Returns OK if all configurations have been successfully set. Otherwise, raises an error.
 
         Examples:
-            >>> await client.config_set([("timeout", "1000")], [("maxmemory", "1GB")])
+            >>> await client.config_set({"timeout": "1000", "maxmemory": "1GB"})
             OK
         """
-        parameters: List[str] = []
+        parameters: List[Union[str, bytes]] = []
         for pair in parameters_map.items():
             parameters.extend(pair)
         return cast(
@@ -245,7 +248,7 @@ class ClusterCommands(CoreCommands):
 
     async def client_getname(
         self, route: Optional[Route] = None
-    ) -> TClusterResponse[Optional[str]]:
+    ) -> TClusterResponse[Optional[bytes]]:
         """
         Get the name of the connection to which the request is routed.
         See https://redis.io/commands/client-getname/ for more details.
@@ -255,19 +258,19 @@ class ClusterCommands(CoreCommands):
             in which case the client will route the command to the nodes defined by `route`.
 
         Returns:
-            TClusterResponse[Optional[str]]: The name of the client connection as a string if a name is set,
+            TClusterResponse[Optional[bytes]]: The name of the client connection as a byte string if a name is set,
             or None if no name is assigned.
             When specifying a route other than a single node, response will be:
-            {Address (str) : response (Optional[str]) , ... } with type of Dict[str, Optional[str]].
+            {Address (bytes) : response (Optional[bytes]) , ... } with type of Dict[bytes, Optional[bytes]].
 
         Examples:
             >>> await client.client_getname()
-            'Connection Name'
+            b'Connection Name'
             >>> await client.client_getname(AllNodes())
-            {'addr': 'Connection Name', 'addr2': 'Connection Name', 'addr3': 'Connection Name'}
+            {b'addr': b'Connection Name', b'addr2': b'Connection Name', b'addr3': b'Connection Name'}
         """
         return cast(
-            TClusterResponse[Optional[str]],
+            TClusterResponse[Optional[bytes]],
             await self._execute_command(RequestType.ClientGetName, [], route),
         )
 
@@ -291,31 +294,31 @@ class ClusterCommands(CoreCommands):
         return cast(int, await self._execute_command(RequestType.DBSize, [], route))
 
     async def echo(
-        self, message: str, route: Optional[Route] = None
-    ) -> TClusterResponse[str]:
+        self, message: Union[str, bytes], route: Optional[Route] = None
+    ) -> TClusterResponse[bytes]:
         """
         Echoes the provided `message` back.
 
         See https://redis.io/commands/echo for more details.
 
         Args:
-            message (str): The message to be echoed back.
+            message (Union[str, bytes]): The message to be echoed back.
             route (Optional[Route]): The command will be routed to a random node, unless `route` is provided,
             in which case the client will route the command to the nodes defined by `route`.
 
         Returns:
-            TClusterResponse[str]: The provided `message`.
+            TClusterResponse[bytes]: The provided `message`.
             When specifying a route other than a single node, response will be:
-            {Address (str) : response (str) , ... } with type of Dict[str, str].
+            {Address (bytes) : response (bytes) , ... } with type of Dict[bytes, bytes].
 
         Examples:
-            >>> await client.echo("Glide-for-Redis")
-                'Glide-for-Redis'
-            >>> await client.echo("Glide-for-Redis", AllNodes())
-                {'addr': 'Glide-for-Redis', 'addr2': 'Glide-for-Redis', 'addr3': 'Glide-for-Redis'}
+            >>> await client.echo(b"Glide-for-Redis")
+                b'Glide-for-Redis'
+            >>> await client.echo(b"Glide-for-Redis", AllNodes())
+                {b'addr': b'Glide-for-Redis', b'addr2': b'Glide-for-Redis', b'addr3': b'Glide-for-Redis'}
         """
         return cast(
-            TClusterResponse[str],
+            TClusterResponse[bytes],
             await self._execute_command(RequestType.Echo, [message], route),
         )
 
@@ -450,7 +453,9 @@ class ClusterCommands(CoreCommands):
             await self._execute_command(RequestType.FCallReadOnly, args, route),
         )
 
-    async def time(self, route: Optional[Route] = None) -> TClusterResponse[List[str]]:
+    async def time(
+        self, route: Optional[Route] = None
+    ) -> TClusterResponse[List[bytes]]:
         """
         Returns the server time.
 
@@ -461,20 +466,20 @@ class ClusterCommands(CoreCommands):
             in which case the client will route the command to the nodes defined by `route`.
 
         Returns:
-            TClusterResponse[Optional[str]]:  The current server time as a two items `array`:
+            TClusterResponse[List[bytes]]: The current server time as a two items `array`:
             A Unix timestamp and the amount of microseconds already elapsed in the current second.
             The returned `array` is in a [Unix timestamp, Microseconds already elapsed] format.
             When specifying a route other than a single node, response will be:
-            {Address (str) : response (List[str]) , ... } with type of Dict[str, List[str]].
+            {Address (bytes) : response (List[bytes]) , ... } with type of Dict[bytes, List[bytes]].
 
         Examples:
             >>> await client.time()
-            ['1710925775', '913580']
+            [b'1710925775', b'913580']
             >>> await client.time(AllNodes())
-            {'addr': ['1710925775', '913580'], 'addr2': ['1710925775', '913580'], 'addr3': ['1710925775', '913580']}
+            {b'addr': [b'1710925775', b'913580'], b'addr2': [b'1710925775', b'913580'], b'addr3': [b'1710925775', b'913580']}
         """
         return cast(
-            TClusterResponse[List[str]],
+            TClusterResponse[List[bytes]],
             await self._execute_command(RequestType.Time, [], route),
         )
 
@@ -491,14 +496,14 @@ class ClusterCommands(CoreCommands):
         Returns:
             TClusterResponse[int]: The Unix time of the last successful DB save.
                 If no route is provided, or a single node route is requested, returns an int representing the Unix time
-                of the last successful DB save. Otherwise, returns a dict of [str , int] where each key contains the
+                of the last successful DB save. Otherwise, returns a dict of [bytes , int] where each key contains the
                 address of the queried node and the value contains the Unix time of the last successful DB save.
 
         Examples:
             >>> await client.lastsave()
             1710925775  # Unix time of the last DB save
             >>> await client.lastsave(AllNodes())
-            {'addr1': 1710925775, 'addr2': 1710925775, 'addr3': 1710925775}  # Unix time of the last DB save on each node
+            {b'addr1': 1710925775, b'addr2': 1710925775, b'addr3': 1710925775}  # Unix time of the last DB save on each node
         """
         return cast(
             TClusterResponse[int],
@@ -507,11 +512,11 @@ class ClusterCommands(CoreCommands):
 
     async def sort(
         self,
-        key: str,
+        key: Union[str, bytes],
         limit: Optional[Limit] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
-    ) -> List[str]:
+    ) -> List[bytes]:
         """
         Sorts the elements in the list, set, or sorted set at `key` and returns the result.
         To store the result into a new key, see `sort_store`.
@@ -521,7 +526,7 @@ class ClusterCommands(CoreCommands):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
             order (Optional[OrderBy]): Specifies the order to sort the elements.
                 Can be `OrderBy.ASC` (ascending) or `OrderBy.DESC` (descending).
@@ -529,32 +534,32 @@ class ClusterCommands(CoreCommands):
                 Use this when the list, set, or sorted set contains string values that cannot be converted into double precision floating point numbers.
 
         Returns:
-            List[str]: A list of sorted elements.
+            List[bytes]: A list of sorted elements.
 
         Examples:
-            >>> await client.lpush("mylist", '3', '1', '2')
-            >>> await client.sort("mylist")
-            ['1', '2', '3']
+            >>> await client.lpush(b"mylist", b'3', b'1', b'2')
+            >>> await client.sort(b"mylist")
+            [b'1', b'2', b'3']
 
-            >>> await client.sort("mylist", order=OrderBy.DESC)
-            ['3', '2', '1']
+            >>> await client.sort(b"mylist", order=OrderBy.DESC)
+            [b'3', b'2', b'1']
 
-            >>> await client.lpush("mylist", '2', '1', '2', '3', '3', '1')
-            >>> await client.sort("mylist", limit=Limit(2, 3))
-            ['1', '2', '2']
+            >>> await client.lpush(b"mylist", b'2', b'1', b'2', b'3', b'3', b'1')
+            >>> await client.sort(b"mylist", limit=Limit(2, 3))
+            [b'2', b'2', b'3']
 
-            >>> await client.lpush("mylist", "a", "b", "c", "d")
-            >>> await client.sort("mylist", limit=Limit(2, 2), order=OrderBy.DESC, alpha=True)
-            ['b', 'a']
+            >>> await client.lpush(b"mylist", b"a", b"b", b"c", b"d")
+            >>> await client.sort(b"mylist", limit=Limit(2, 2), order=OrderBy.DESC, alpha=True)
+            [b'b', b'a']
         """
         args = _build_sort_args(key, None, limit, None, order, alpha)
         result = await self._execute_command(RequestType.Sort, args)
-        return cast(List[str], result)
+        return cast(List[bytes], result)
 
     async def sort_store(
         self,
-        key: str,
-        destination: str,
+        key: Union[str, bytes],
+        destination: Union[str, bytes],
         limit: Optional[Limit] = None,
         order: Optional[OrderBy] = None,
         alpha: Optional[bool] = None,
@@ -567,8 +572,8 @@ class ClusterCommands(CoreCommands):
         See https://valkey.io/commands/sort for more details.
 
         Args:
-            key (str): The key of the list, set, or sorted set to be sorted.
-            destination (str): The key where the sorted result will be stored.
+            key (Union[str, bytes]): The key of the list, set, or sorted set to be sorted.
+            destination (Union[str, bytes]): The key where the sorted result will be stored.
             limit (Optional[Limit]): Limiting the range of the query by setting offset and result count. See `Limit` class for more information.
             order (Optional[OrderBy]): Specifies the order to sort the elements.
                 Can be `OrderBy.ASC` (ascending) or `OrderBy.DESC` (descending).
@@ -579,36 +584,41 @@ class ClusterCommands(CoreCommands):
             int: The number of elements in the sorted key stored at `store`.
 
         Examples:
-            >>> await client.lpush("mylist", 3, 1, 2)
-            >>> await client.sort_store("mylist", "sorted_list")
+            >>> await client.lpush(b"mylist", b'3', b'1', b'2')
+            >>> await client.sort_store(b"mylist", b"sorted_list")
             3  # Indicates that the sorted list "sorted_list" contains three elements.
-            >>> await client.lrange("sorted_list", 0, -1)
-            ['1', '2', '3']
+            >>> await client.lrange(b"sorted_list", 0, -1)
+            [b'1', b'2', b'3']
         """
         args = _build_sort_args(key, None, limit, None, order, alpha, store=destination)
         result = await self._execute_command(RequestType.Sort, args)
         return cast(int, result)
 
-    async def publish(self, message: str, channel: str, sharded: bool = False) -> int:
+    async def publish(
+        self,
+        message: Union[str, bytes],
+        channel: Union[str, bytes],
+        sharded: bool = False,
+    ) -> int:
         """
         Publish a message on pubsub channel.
         This command aggregates PUBLISH and SPUBLISH commands functionalities.
-        The mode is selected using the 'sharded' parameter
+        The mode is selected using the 'sharded' parameter.
         See https://valkey.io/commands/publish and https://valkey.io/commands/spublish for more details.
 
         Args:
-            message (str): Message to publish
-            channel (str): Channel to publish the message on.
+            message (Union[str, bytes]): Message to publish.
+            channel (Union[str, bytes]): Channel to publish the message on.
             sharded (bool): Use sharded pubsub mode.
 
         Returns:
             int: Number of subscriptions in that shard that received the message.
 
         Examples:
-            >>> await client.publish("Hi all!", "global-channel", False)
-                1  # Publishes "Hi all!" message on global-channel channel using non-sharded mode
-            >>> await client.publish("Hi to sharded channel1!", "channel1, True)
-                2  # Publishes "Hi to sharded channel1!" message on channel1 using sharded mode
+            >>> await client.publish(b"Hi all!", b"global-channel", False)
+                1  # Publishes "Hi all!" message on global-channel channel using non-sharded mode.
+            >>> await client.publish(b"Hi to sharded channel1!", b"channel1", True)
+                2  # Publishes "Hi to sharded channel1!" message on channel1 using sharded mode.
         """
         result = await self._execute_command(
             RequestType.SPublish if sharded else RequestType.Publish, [channel, message]

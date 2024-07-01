@@ -240,7 +240,7 @@ class BaseClient(CoreCommands):
     async def _execute_command(
         self,
         request_type: RequestType.ValueType,
-        args: List[str],
+        args: List[Union[str, bytes]],
         route: Optional[Route] = None,
     ) -> TResult:
         if self._is_closed:
@@ -266,7 +266,7 @@ class BaseClient(CoreCommands):
 
     async def _execute_transaction(
         self,
-        commands: List[Tuple[RequestType.ValueType, List[str]]],
+        commands: List[Tuple[RequestType.ValueType, List[Union[str, bytes]]]],
         route: Optional[Route] = None,
     ) -> List[TResult]:
         if self._is_closed:
@@ -293,9 +293,9 @@ class BaseClient(CoreCommands):
 
     async def _execute_script(
         self,
-        hash: str,
-        keys: Optional[List[str]] = None,
-        args: Optional[List[str]] = None,
+        hash: Union[str, bytes],
+        keys: Optional[List[Union[str, bytes]]] = None,
+        args: Optional[List[Union[str, bytes]]] = None,
         route: Optional[Route] = None,
     ) -> TResult:
         if self._is_closed:
