@@ -553,9 +553,7 @@ class CoreCommands(Protocol):
             TOK, await self._execute_command(RequestType.Rename, [key, new_key])
         )
 
-    async def renamenx(
-        self, key: TEncodable, new_key: TEncodable
-    ) -> bool:
+    async def renamenx(self, key: TEncodable, new_key: TEncodable) -> bool:
         """
         Renames `key` to `new_key` if `new_key` does not yet exist.
 
@@ -667,9 +665,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.IncrByFloat, [key, str(amount)]),
         )
 
-    async def setrange(
-        self, key: TEncodable, offset: int, value: TEncodable
-    ) -> int:
+    async def setrange(self, key: TEncodable, offset: int, value: TEncodable) -> int:
         """
         Overwrites part of the string stored at `key`, starting at the specified
         `offset`, for the entire length of `value`.
@@ -699,9 +695,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def mset(
-        self, key_value_map: Mapping[TEncodable, TEncodable]
-    ) -> TOK:
+    async def mset(self, key_value_map: Mapping[TEncodable, TEncodable]) -> TOK:
         """
         Set multiple keys to multiple values in a single atomic operation.
         See https://redis.io/commands/mset/ for more details.
@@ -724,9 +718,7 @@ class CoreCommands(Protocol):
             parameters.extend(pair)
         return cast(TOK, await self._execute_command(RequestType.MSet, parameters))
 
-    async def msetnx(
-        self, key_value_map: Mapping[TEncodable, TEncodable]
-    ) -> bool:
+    async def msetnx(self, key_value_map: Mapping[TEncodable, TEncodable]) -> bool:
         """
         Sets multiple keys to values if the key does not exist. The operation is atomic, and if one or
         more keys already exist, the entire operation fails.
@@ -874,9 +866,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.HSet, field_value_list),
         )
 
-    async def hget(
-        self, key: TEncodable, field: TEncodable
-    ) -> Optional[bytes]:
+    async def hget(self, key: TEncodable, field: TEncodable) -> Optional[bytes]:
         """
         Retrieves the value associated with `field` in the hash stored at `key`.
         See https://redis.io/commands/hget/ for more details.
@@ -932,9 +922,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.HSetNX, [key, field, value]),
         )
 
-    async def hincrby(
-        self, key: TEncodable, field: TEncodable, amount: int
-    ) -> int:
+    async def hincrby(self, key: TEncodable, field: TEncodable, amount: int) -> int:
         """
         Increment or decrement the value of a `field` in the hash stored at `key` by the specified amount.
         By using a negative increment value, the value stored at `field` in the hash stored at `key` is decremented.
@@ -1058,9 +1046,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.HMGet, [key] + fields),
         )
 
-    async def hdel(
-        self, key: TEncodable, fields: List[TEncodable]
-    ) -> int:
+    async def hdel(self, key: TEncodable, fields: List[TEncodable]) -> int:
         """
         Remove specified fields from the hash stored at `key`.
         See https://redis.io/commands/hdel/ for more details.
@@ -1237,9 +1223,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.HStrlen, [key, field]),
         )
 
-    async def lpush(
-        self, key: TEncodable, elements: List[TEncodable]
-    ) -> int:
+    async def lpush(self, key: TEncodable, elements: List[TEncodable]) -> int:
         """
         Insert all the specified values at the head of the list stored at `key`.
         `elements` are inserted one after the other to the head of the list, from the leftmost element
@@ -1263,9 +1247,7 @@ class CoreCommands(Protocol):
             int, await self._execute_command(RequestType.LPush, [key] + elements)
         )
 
-    async def lpushx(
-        self, key: TEncodable, elements: List[TEncodable]
-    ) -> int:
+    async def lpushx(self, key: TEncodable, elements: List[TEncodable]) -> int:
         """
         Inserts all the specified values at the head of the list stored at `key`, only if `key` exists and holds a list.
         If `key` is not a list, this performs no operation.
@@ -1313,9 +1295,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.LPop, [key]),
         )
 
-    async def lpop_count(
-        self, key: TEncodable, count: int
-    ) -> Optional[List[bytes]]:
+    async def lpop_count(self, key: TEncodable, count: int) -> Optional[List[bytes]]:
         """
         Remove and return up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/lpop/ for details.
@@ -1515,9 +1495,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.LIndex, [key, str(index)]),
         )
 
-    async def lset(
-        self, key: TEncodable, index: int, element: TEncodable
-    ) -> TOK:
+    async def lset(self, key: TEncodable, index: int, element: TEncodable) -> TOK:
         """
         Sets the list element at `index` to `element`.
 
@@ -1544,9 +1522,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.LSet, [key, str(index), element]),
         )
 
-    async def rpush(
-        self, key: TEncodable, elements: List[TEncodable]
-    ) -> int:
+    async def rpush(self, key: TEncodable, elements: List[TEncodable]) -> int:
         """
         Inserts all the specified values at the tail of the list stored at `key`.
         `elements` are inserted one after the other to the tail of the list, from the leftmost element
@@ -1570,9 +1546,7 @@ class CoreCommands(Protocol):
             int, await self._execute_command(RequestType.RPush, [key] + elements)
         )
 
-    async def rpushx(
-        self, key: TEncodable, elements: List[TEncodable]
-    ) -> int:
+    async def rpushx(self, key: TEncodable, elements: List[TEncodable]) -> int:
         """
         Inserts all the specified values at the tail of the list stored at `key`, only if `key` exists and holds a list.
         If `key` is not a list, this performs no operation.
@@ -1620,9 +1594,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.RPop, [key]),
         )
 
-    async def rpop_count(
-        self, key: TEncodable, count: int
-    ) -> Optional[List[bytes]]:
+    async def rpop_count(self, key: TEncodable, count: int) -> Optional[List[bytes]]:
         """
         Removes and returns up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/rpop/ for details.
@@ -1805,9 +1777,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def sadd(
-        self, key: TEncodable, members: List[TEncodable]
-    ) -> int:
+    async def sadd(self, key: TEncodable, members: List[TEncodable]) -> int:
         """
         Add specified members to the set stored at `key`.
         Specified members that are already a member of this set are ignored.
@@ -1827,9 +1797,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.SAdd, [key] + members))
 
-    async def srem(
-        self, key: TEncodable, members: List[TEncodable]
-    ) -> int:
+    async def srem(self, key: TEncodable, members: List[TEncodable]) -> int:
         """
         Remove specified members from the set stored at `key`.
         Specified members that are not a member of this set are ignored.
@@ -2055,9 +2023,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.SUnionStore, [destination] + keys),
         )
 
-    async def sdiffstore(
-        self, destination: TEncodable, keys: List[TEncodable]
-    ) -> int:
+    async def sdiffstore(self, destination: TEncodable, keys: List[TEncodable]) -> int:
         """
         Stores the difference between the first set and all the successive sets in `keys` into a new set at
         `destination`.
@@ -2111,9 +2077,7 @@ class CoreCommands(Protocol):
         """
         return cast(Set[bytes], await self._execute_command(RequestType.SInter, keys))
 
-    async def sinterstore(
-        self, destination: TEncodable, keys: List[TEncodable]
-    ) -> int:
+    async def sinterstore(self, destination: TEncodable, keys: List[TEncodable]) -> int:
         """
         Stores the members of the intersection of all given sets specified by `keys` into a new set at `destination`.
 
@@ -2259,9 +2223,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.LTrim, [key, str(start), str(end)]),
         )
 
-    async def lrem(
-        self, key: TEncodable, count: int, element: TEncodable
-    ) -> int:
+    async def lrem(self, key: TEncodable, count: int, element: TEncodable) -> int:
         """
         Removes the first `count` occurrences of elements equal to `element` from the list stored at `key`.
         If `count` is positive, it removes elements equal to `element` moving from head to tail.
@@ -2929,9 +2891,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.XGroupCreate, args),
         )
 
-    async def xgroup_destroy(
-        self, key: TEncodable, group_name: TEncodable
-    ) -> bool:
+    async def xgroup_destroy(self, key: TEncodable, group_name: TEncodable) -> bool:
         """
         Destroys the consumer group `group_name` for the stream stored at `key`.
 
@@ -4206,9 +4166,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ZRank, [key, member, "WITHSCORE"]),
         )
 
-    async def zrevrank(
-        self, key: TEncodable, member: TEncodable
-    ) -> Optional[int]:
+    async def zrevrank(self, key: TEncodable, member: TEncodable) -> Optional[int]:
         """
         Returns the rank of `member` in the sorted set stored at `key`, where scores are ordered from the highest to
         lowest, starting from `0`.
@@ -4473,9 +4431,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def zscore(
-        self, key: TEncodable, member: TEncodable
-    ) -> Optional[float]:
+    async def zscore(self, key: TEncodable, member: TEncodable) -> Optional[float]:
         """
         Returns the score of `member` in the sorted set stored at `key`.
 
@@ -4559,9 +4515,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ZDiff, args),
         )
 
-    async def zdiff_withscores(
-        self, keys: List[TEncodable]
-    ) -> Mapping[bytes, float]:
+    async def zdiff_withscores(self, keys: List[TEncodable]) -> Mapping[bytes, float]:
         """
         Returns the difference between the first sorted set and all the successive sorted sets, with the associated scores.
         When in Cluster mode, all keys must map to the same hash slot.
@@ -4591,9 +4545,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def zdiffstore(
-        self, destination: TEncodable, keys: List[TEncodable]
-    ) -> int:
+    async def zdiffstore(self, destination: TEncodable, keys: List[TEncodable]) -> int:
         """
         Calculates the difference between the first sorted set and all the successive sorted sets at `keys` and stores
         the difference as a sorted set to `destination`, overwriting it if it already exists. Non-existent keys are
@@ -4883,9 +4835,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ZRandMember, [key]),
         )
 
-    async def zrandmember_count(
-        self, key: TEncodable, count: int
-    ) -> List[bytes]:
+    async def zrandmember_count(self, key: TEncodable, count: int) -> List[bytes]:
         """
         Retrieves up to the absolute value of `count` random members from the sorted set stored at 'key'.
 
@@ -5118,9 +5068,7 @@ class CoreCommands(Protocol):
         """
         return await self._execute_script(script.get_hash(), keys, args)
 
-    async def pfadd(
-        self, key: TEncodable, elements: List[TEncodable]
-    ) -> int:
+    async def pfadd(self, key: TEncodable, elements: List[TEncodable]) -> int:
         """
         Adds all elements to the HyperLogLog data structure stored at the specified `key`.
         Creates a new structure if the `key` does not exist.
@@ -5595,9 +5543,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.SRandMember, [key]),
         )
 
-    async def srandmember_count(
-        self, key: TEncodable, count: int
-    ) -> List[bytes]:
+    async def srandmember_count(self, key: TEncodable, count: int) -> List[bytes]:
         """
         Returns one or more random elements from the set value stored at 'key'.
 

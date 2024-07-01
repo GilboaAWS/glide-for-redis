@@ -259,9 +259,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.CustomCommand, command_args)
 
-    def append(
-        self: TTransaction, key: TEncodable, value: TEncodable
-    ) -> TTransaction:
+    def append(self: TTransaction, key: TEncodable, value: TEncodable) -> TTransaction:
         """
         Appends a value to a key.
         If `key` does not exist it is created and set as an empty string, so `APPEND` will be similar to SET in this special case.
@@ -308,9 +306,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.Del, keys)
 
-    def config_get(
-        self: TTransaction, parameters: List[TEncodable]
-    ) -> TTransaction:
+    def config_get(self: TTransaction, parameters: List[TEncodable]) -> TTransaction:
         """
         Get the values of configuration parameters.
         See https://redis.io/commands/config-get/ for details.
@@ -469,9 +465,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.IncrBy, [key, str(amount)])
 
-    def incrbyfloat(
-        self: TTransaction, key: TEncodable, amount: float
-    ) -> TTransaction:
+    def incrbyfloat(self: TTransaction, key: TEncodable, amount: float) -> TTransaction:
         """
         Increment the string representing a floating point number stored at `key` by `amount`.
         By using a negative increment value, the value stored at the `key` is decremented.
@@ -487,9 +481,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.IncrByFloat, [key, str(amount)])
 
-    def ping(
-        self: TTransaction, message: Optional[TEncodable] = None
-    ) -> TTransaction:
+    def ping(self: TTransaction, message: Optional[TEncodable] = None) -> TTransaction:
         """
         Ping the Redis server.
         See https://redis.io/commands/ping/ for more details.
@@ -580,9 +572,7 @@ class BaseTransaction:
             field_value_list.extend(pair)
         return self.append_command(RequestType.HSet, field_value_list)
 
-    def hget(
-        self: TTransaction, key: TEncodable, field: TEncodable
-    ) -> TTransaction:
+    def hget(self: TTransaction, key: TEncodable, field: TEncodable) -> TTransaction:
         """
         Retrieves the value associated with `field` in the hash stored at `key`.
         See https://redis.io/commands/hget/ for more details.
@@ -666,9 +656,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.HIncrByFloat, [key, field, str(amount)])
 
-    def hexists(
-        self: TTransaction, key: TEncodable, field: TEncodable
-    ) -> TTransaction:
+    def hexists(self: TTransaction, key: TEncodable, field: TEncodable) -> TTransaction:
         """
         Check if a field exists in the hash stored at `key`.
         See https://redis.io/commands/hexists/ for more details.
@@ -846,9 +834,7 @@ class BaseTransaction:
             RequestType.HRandField, [key, str(count).encode(), b"WITHVALUES"]
         )
 
-    def hstrlen(
-        self: TTransaction, key: TEncodable, field: TEncodable
-    ) -> TTransaction:
+    def hstrlen(self: TTransaction, key: TEncodable, field: TEncodable) -> TTransaction:
         """
         Returns the string length of the value associated with `field` in the hash stored at `key`.
 
@@ -918,9 +904,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.LPop, [key])
 
-    def lpop_count(
-        self: TTransaction, key: TEncodable, count: int
-    ) -> TTransaction:
+    def lpop_count(self: TTransaction, key: TEncodable, count: int) -> TTransaction:
         """
         Remove and return up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/lpop/ for details.
@@ -1141,9 +1125,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.RPop, [key])
 
-    def rpop_count(
-        self: TTransaction, key: TEncodable, count: int
-    ) -> TTransaction:
+    def rpop_count(self: TTransaction, key: TEncodable, count: int) -> TTransaction:
         """
         Removes and returns up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/rpop/ for details.
@@ -1355,9 +1337,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.SPop, [key])
 
-    def spop_count(
-        self: TTransaction, key: TEncodable, count: int
-    ) -> TTransaction:
+    def spop_count(self: TTransaction, key: TEncodable, count: int) -> TTransaction:
         """
         Removes and returns up to `count` random members from the set stored at `key`, depending on the set's length.
 
@@ -1937,9 +1917,7 @@ class BaseTransaction:
             [mode.value] if mode else [],
         )
 
-    def function_delete(
-        self: TTransaction, library_name: TEncodable
-    ) -> TTransaction:
+    def function_delete(self: TTransaction, library_name: TEncodable) -> TTransaction:
         """
         Deletes a library and all its functions.
 
@@ -3335,9 +3313,7 @@ class BaseTransaction:
             RequestType.ZLexCount, [key, min_lex_arg, max_lex_arg]
         )
 
-    def zscore(
-        self: TTransaction, key: TEncodable, member: TEncodable
-    ) -> TTransaction:
+    def zscore(self: TTransaction, key: TEncodable, member: TEncodable) -> TTransaction:
         """
         Returns the score of `member` in the sorted set stored at `key`.
 
@@ -3389,9 +3365,7 @@ class BaseTransaction:
         """
         return self.append_command(RequestType.ZDiff, [str(len(keys))] + keys)
 
-    def zdiff_withscores(
-        self: TTransaction, keys: List[TEncodable]
-    ) -> TTransaction:
+    def zdiff_withscores(self: TTransaction, keys: List[TEncodable]) -> TTransaction:
         """
         Returns the difference between the first sorted set and all the successive sorted sets, with the associated scores.
 

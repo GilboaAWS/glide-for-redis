@@ -140,9 +140,7 @@ class StandaloneCommands(CoreCommands):
         argument = [] if message is None else [message]
         return cast(bytes, await self._execute_command(RequestType.Ping, argument))
 
-    async def config_get(
-        self, parameters: List[TEncodable]
-    ) -> Dict[bytes, bytes]:
+    async def config_get(self, parameters: List[TEncodable]) -> Dict[bytes, bytes]:
         """
         Get the values of configuration parameters.
         See https://redis.io/commands/config-get/ for details.
@@ -164,9 +162,7 @@ class StandaloneCommands(CoreCommands):
             await self._execute_command(RequestType.ConfigGet, parameters),
         )
 
-    async def config_set(
-        self, parameters_map: Mapping[TEncodable, TEncodable]
-    ) -> TOK:
+    async def config_set(self, parameters_map: Mapping[TEncodable, TEncodable]) -> TOK:
         """
         Set configuration parameters to the specified values.
         See https://redis.io/commands/config-set/ for details.
@@ -500,9 +496,7 @@ class StandaloneCommands(CoreCommands):
         result = await self._execute_command(RequestType.Sort, args)
         return cast(int, result)
 
-    async def publish(
-        self, message: TEncodable, channel: TEncodable
-    ) -> TOK:
+    async def publish(self, message: TEncodable, channel: TEncodable) -> TOK:
         """
         Publish a message on pubsub channel.
         See https://valkey.io/commands/publish for more details.
