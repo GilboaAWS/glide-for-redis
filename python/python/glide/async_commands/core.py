@@ -3342,13 +3342,13 @@ class CoreCommands(Protocol):
         Examples:
             # Redis version < 7.0.0:
             >>> await client.xautoclaim_just_id("my_stream", "my_group", "my_consumer", 3_600_000, "0-0")
-                ["0-0", ["1-1"]]
+                [b"0-0", [b"1-1"]]
                 # Stream entry "1-1" was idle for over an hour and was thus claimed by "my_consumer". The entire stream
                 # was scanned.
 
             # Redis version 7.0.0 and above:
             >>> await client.xautoclaim_just_id("my_stream", "my_group", "my_consumer", 3_600_000, "0-0")
-                ["0-0", ["1-1"], ["1-2"]]
+                [b"0-0", [b"1-1"], [b"1-2"]]
                 # Stream entry "1-1" was idle for over an hour and was thus claimed by "my_consumer". The entire stream
                 # was scanned. Additionally, entry "1-2" was removed from the Pending Entries List because it no longer
                 # exists in the stream.
@@ -3368,7 +3368,7 @@ class CoreCommands(Protocol):
         args.append("JUSTID")
 
         return cast(
-            List[Union[str, List[str]]],
+            List[Union[bytes, List[bytes]]],
             await self._execute_command(RequestType.XAutoClaim, args),
         )
 
@@ -5781,7 +5781,7 @@ class CoreCommands(Protocol):
             args += ["COUNT", str(count)]
 
         return cast(
-            List[Union[str, List[str]]],
+            List[Union[bytes, List[bytes]]],
             await self._execute_command(RequestType.ZScan, args),
         )
 
@@ -5842,15 +5842,15 @@ class CoreCommands(Protocol):
             args += ["COUNT", str(count)]
 
         return cast(
-            List[Union[str, List[str]]],
+            List[Union[bytes, List[bytes]]],
             await self._execute_command(RequestType.HScan, args),
         )
 
     async def fcall_ro(
         self,
-        function: str,
-        keys: Optional[List[str]] = None,
-        arguments: Optional[List[str]] = None,
+        function: Union[str, bytes],
+        keys: Optional[List[Union[str, bytes]]] = None,
+        arguments: Optional[List[Union[str, bytes]]] = None,
     ) -> TResult:
         """
         Invokes a previously loaded read-only function.
@@ -5860,11 +5860,11 @@ class CoreCommands(Protocol):
         When in cluster mode, all keys in `keys` must map to the same hash slot.
 
         Args:
-            function (str): The function name.
-            keys (List[str]): An `array` of keys accessed by the function. To ensure the correct
+            function (Union[str, bytes]): The function name.
+            keys (List[Union[str, bytes]]): An `array` of keys accessed by the function. To ensure the correct
                 execution of functions, all names of keys that a function accesses must be
                 explicitly provided as `keys`.
-            arguments (List[str]): An `array` of `function` arguments. `arguments` should not
+            arguments (List[Union[str, bytes]]): An `array` of `function` arguments. `arguments` should not
                 represent names of keys.
 
         Returns:
@@ -5877,7 +5877,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 7.0.0.
         """
-        args = []
+        args: List[Union[str, bytes]] = []
         if keys is not None:
             args.extend([function, str(len(keys))] + keys)
         else:
@@ -5889,7 +5889,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.FCallReadOnly, args),
         )
 
-    async def watch(self, keys: List[str]) -> TOK:
+    async def watch(self, keys: List[Union[str, bytes]]) -> TOK:
         """
         Marks the given keys to be watched for conditional execution of a transaction. Transactions
         will only execute commands if the watched keys are not modified before execution of the
@@ -5901,7 +5901,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[str]): The keys to watch.
+            keys (List[Union[str, bytes]]): The keys to watch.
 
         Returns:
             TOK: A simple "OK" response.
