@@ -1,7 +1,7 @@
 # Copyright Valkey GLIDE Project Contributors - SPDX Identifier: Apache-2.0
 
 from enum import Enum
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, cast
 
 from glide.async_commands.command_args import Limit, OrderBy
 
@@ -308,22 +308,25 @@ def _create_zrange_args(
 
 
 def separate_keys(
-    keys: Union[List[bytes], List[Tuple[bytes, float]]]
-) -> Tuple[List[str], List[str]]:
+    keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]
+) -> Tuple[List[Union[str, bytes]], List[Union[str, bytes]]]:
     """
-    Returns seperate lists of keys and weights in case of weighted keys.
+    Returns separate lists of keys and weights in case of weighted keys.
     """
     if not keys:
         return [], []
 
-    key_list: List[str] = []
-    weight_list: List[str] = []
+    key_list: List[Union[str, bytes]] = []
+    weight_list: List[Union[str, bytes]] = []
 
     if isinstance(keys[0], tuple):
-        key_list = [item[0] for item in keys]
-        weight_list = [str(item[1]) for item in keys]
+        for item in keys:
+            key = item[0]
+            weight = item[1]
+            key_list.append(cast(Union[str, bytes], key))
+            weight_list.append(cast(Union[str, bytes], str(weight)))
     else:
-        key_list = keys  # type: ignore
+        key_list.extend(cast(List[Union[str, bytes]], keys))
 
     return key_list, weight_list
 
@@ -333,7 +336,7 @@ def _create_zinter_zunion_cmd_args(
     aggregation_type: Optional[AggregationType] = None,
     destination: Optional[Union[str, bytes]] = None,
 ) -> List[Union[str, bytes]]:
-    args = []
+    args: List[Union[str, bytes]] = []
 
     if destination:
         args.append(destination)
@@ -342,11 +345,11 @@ def _create_zinter_zunion_cmd_args(
 
     only_keys, weights = separate_keys(keys)
 
-    args += only_keys
+    args.extend(only_keys)
 
     if weights:
         args.append("WEIGHTS")
-        args += weights
+        args.extend(weights)
 
     if aggregation_type:
         args.append("AGGREGATE")
