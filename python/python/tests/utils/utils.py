@@ -143,7 +143,14 @@ def convert_bytes_to_string_object(
             Dict[str, Any],
         ]
     ]
-) -> Optional[Union[List[Any], Set[str], Mapping[str, Any], Dict[str, Any],]]:
+) -> Optional[
+    Union[
+        List[Any],
+        Set[str],
+        Mapping[str, Any],
+        Dict[str, Any],
+    ]
+]:
     """
     Recursively convert data structure from byte strings to regular strings,
     handling nested data structures of any depth.
@@ -176,7 +183,14 @@ def convert_string_to_bytes_object(
             Dict[str, Any],
         ]
     ]
-) -> Optional[Union[List[Any], Set[bytes], Mapping[bytes, Any], Dict[bytes, Any],]]:
+) -> Optional[
+    Union[
+        List[Any],
+        Set[bytes],
+        Mapping[bytes, Any],
+        Dict[bytes, Any],
+    ]
+]:
     """
     Recursively convert the data structure from strings to bytes,
     handling nested data structures of any depth.
