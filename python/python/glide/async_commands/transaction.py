@@ -1893,7 +1893,7 @@ class BaseTransaction:
         return self.append_command(RequestType.Type, [key])
 
     def function_load(
-        self: TTransaction, library_code: str, replace: bool = False
+        self: TTransaction, library_code: Union[str, bytes], replace: bool = False
     ) -> TTransaction:
         """
         Loads a library to Redis.
@@ -1901,7 +1901,7 @@ class BaseTransaction:
         See https://valkey.io/docs/latest/commands/function-load/ for more details.
 
         Args:
-            library_code (str): The source code that implements the library.
+            library_code (Union[str, bytes]): The source code that implements the library.
             replace (bool): Whether the given library should overwrite a library with the same name if
                 it already exists.
 
@@ -1936,14 +1936,16 @@ class BaseTransaction:
             [mode.value] if mode else [],
         )
 
-    def function_delete(self: TTransaction, library_name: str) -> TTransaction:
+    def function_delete(
+        self: TTransaction, library_name: Union[str, bytes]
+    ) -> TTransaction:
         """
         Deletes a library and all its functions.
 
         See https://valkey.io/docs/latest/commands/function-delete/ for more details.
 
         Args:
-            library_code (str): The libary name to delete
+            library_code (Union[str, bytes]): The libary name to delete
 
         Commands response:
             TOK: A simple `OK`.
@@ -1957,9 +1959,9 @@ class BaseTransaction:
 
     def fcall_ro(
         self: TTransaction,
-        function: str,
-        keys: Optional[List[str]] = None,
-        arguments: Optional[List[str]] = None,
+        function: Union[str, bytes],
+        keys: Optional[List[Union[str, bytes]]] = None,
+        arguments: Optional[List[Union[str, bytes]]] = None,
     ) -> TTransaction:
         """
         Invokes a previously loaded read-only function.
@@ -1967,11 +1969,11 @@ class BaseTransaction:
         See https://valkey.io/commands/fcall_ro for more details.
 
         Args:
-            function (str): The function name.
-            keys (List[str]): An `array` of keys accessed by the function. To ensure the correct
+            function (Union[str, bytes]): The function name.
+            keys (List[Union[str, bytes]]): An `array` of keys accessed by the function. To ensure the correct
                 execution of functions, all names of keys that a function accesses must be
                 explicitly provided as `keys`.
-            arguments (List[str]): An `array` of `function` arguments. `arguments` should not
+            arguments (List[Union[str, bytes]]): An `array` of `function` arguments. `arguments` should not
                 represent names of keys.
 
         Command Response:
@@ -2014,15 +2016,17 @@ class BaseTransaction:
 
         return self.append_command(RequestType.XAdd, args)
 
-    def xdel(self: TTransaction, key: str, ids: List[str]) -> TTransaction:
+    def xdel(
+        self: TTransaction, key: Union[str, bytes], ids: List[Union[str, bytes]]
+    ) -> TTransaction:
         """
         Removes the specified entries by id from a stream, and returns the number of entries deleted.
 
         See https://valkey.io/commands/xdel for more details.
 
         Args:
-            key (str): The key of the stream.
-            ids (List[str]): An array of entry ids.
+            key (Union[str, bytes]): The key of the stream.
+            ids (List[Union[str, bytes]]): An array of entry ids.
 
         Command response:
             int: The number of entries removed from the stream. This number may be less than the number of entries in
@@ -2069,7 +2073,7 @@ class BaseTransaction:
 
     def xrange(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         start: StreamRangeBound,
         end: StreamRangeBound,
         count: Optional[int] = None,
@@ -2080,7 +2084,7 @@ class BaseTransaction:
         See https://valkey.io/commands/xrange for more details.
 
         Args:
-            key (str): The key of the stream.
+            key (Union[str, bytes]): The key of the stream.
             start (StreamRangeBound): The starting stream ID bound for the range.
                 - Use `IdBound` to specify a stream ID.
                 - Use `ExclusiveIdBound` to specify an exclusive bounded stream ID.
@@ -2093,7 +2097,7 @@ class BaseTransaction:
                 If `count` is not provided, all stream entries in the range will be returned.
 
         Command response:
-            Optional[Mapping[str, List[List[str]]]]: A mapping of stream IDs to stream entry data, where entry data is a
+            Optional[Mapping[bytes, List[List[bytes]]]]: A mapping of stream IDs to stream entry data, where entry data is a
                 list of pairings with format `[[field, entry], [field, entry], ...]`. Returns None if the range arguments
                 are not applicable.
         """
@@ -2105,7 +2109,7 @@ class BaseTransaction:
 
     def xrevrange(
         self: TTransaction,
-        key: str,
+        key: Union[str, bytes],
         end: StreamRangeBound,
         start: StreamRangeBound,
         count: Optional[int] = None,
@@ -2117,7 +2121,7 @@ class BaseTransaction:
         See https://valkey.io/commands/xrevrange for more details.
 
         Args:
-            key (str): The key of the stream.
+            key (Union[str, bytes]): The key of the stream.
             end (StreamRangeBound): The ending stream ID bound for the range.
                 - Use `IdBound` to specify a stream ID.
                 - Use `ExclusiveIdBound` to specify an exclusive bounded stream ID.
@@ -2130,7 +2134,7 @@ class BaseTransaction:
                 If `count` is not provided, all stream entries in the range will be returned.
 
         Command response:
-            Optional[Mapping[str, List[List[str]]]]: A mapping of stream IDs to stream entry data, where entry data is a
+            Optional[Mapping[bytes, List[List[bytes]]]]: A mapping of stream IDs to stream entry data, where entry data is a
                 list of pairings with format `[[field, entry], [field, entry], ...]`. Returns None if the range arguments
                 are not applicable.
         """
@@ -2142,7 +2146,7 @@ class BaseTransaction:
 
     def xread(
         self: TTransaction,
-        keys_and_ids: Mapping[str, str],
+        keys_and_ids: Mapping[Union[str, bytes], Union[str, bytes]],
         options: Optional[StreamReadOptions] = None,
     ) -> TTransaction:
         """
@@ -2151,18 +2155,18 @@ class BaseTransaction:
         See https://valkey.io/commands/xread for more details.
 
         Args:
-            keys_and_ids (Mapping[str, str]): A mapping of keys and entry IDs to read from. The mapping is composed of a
+            keys_and_ids (Mapping[Union[str, bytes], Union[str, bytes]]): A mapping of keys and entry IDs to read from. The mapping is composed of a
                 stream's key and the ID of the entry after which the stream will be read.
             options (Optional[StreamReadOptions]): Options detailing how to read the stream.
 
         Command response:
-            Optional[Mapping[str, Mapping[str, List[List[str]]]]]: A mapping of stream keys, to a mapping of stream IDs,
+            Optional[Mapping[bytes, Mapping[bytes, List[List[bytes]]]]]: A mapping of stream keys, to a mapping of stream IDs,
                 to a list of pairings with format `[[field, entry], [field, entry], ...]`.
                 None will be returned under the following conditions:
                 - All key-ID pairs in `keys_and_ids` have either a non-existing key or a non-existing ID, or there are no entries after the given ID.
                 - The `BLOCK` option is specified and the timeout is hit.
         """
-        args = [] if options is None else options.to_args()
+        args: List[Union[str, bytes]] = [] if options is None else options.to_args()
         args.append("STREAMS")
         args.extend([key for key in keys_and_ids.keys()])
         args.extend([value for value in keys_and_ids.values()])
@@ -2171,9 +2175,9 @@ class BaseTransaction:
 
     def xgroup_create(
         self: TTransaction,
-        key: str,
-        group_name: str,
-        group_id: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        group_id: Union[str, bytes],
         options: Optional[StreamGroupOptions] = None,
     ) -> TTransaction:
         """
@@ -2182,9 +2186,9 @@ class BaseTransaction:
         See https://valkey.io/commands/xgroup-create for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The newly created consumer group name.
-            group_id (str): The stream entry ID that specifies the last delivered entry in the stream from the new
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The newly created consumer group name.
+            group_id (Union[str, bytes]): The stream entry ID that specifies the last delivered entry in the stream from the new
                 group’s perspective. The special ID "$" can be used to specify the last entry in the stream.
             options (Optional[StreamGroupOptions]): Options for creating the stream group.
 
@@ -2197,15 +2201,17 @@ class BaseTransaction:
 
         return self.append_command(RequestType.XGroupCreate, args)
 
-    def xgroup_destroy(self: TTransaction, key: str, group_name: str) -> TTransaction:
+    def xgroup_destroy(
+        self: TTransaction, key: Union[str, bytes], group_name: Union[str, bytes]
+    ) -> TTransaction:
         """
         Destroys the consumer group `group_name` for the stream stored at `key`.
 
         See https://valkey.io/commands/xgroup-destroy for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name to delete.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name to delete.
 
         Command response:
             bool: True if the consumer group was destroyed. Otherwise, returns False.
@@ -2213,7 +2219,10 @@ class BaseTransaction:
         return self.append_command(RequestType.XGroupDestroy, [key, group_name])
 
     def xgroup_create_consumer(
-        self: TTransaction, key: str, group_name: str, consumer_name: str
+        self: TTransaction,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
     ) -> TTransaction:
         """
         Creates a consumer named `consumer_name` in the consumer group `group_name` for the stream stored at `key`.
@@ -2221,9 +2230,9 @@ class BaseTransaction:
         See https://valkey.io/commands/xgroup-createconsumer for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            consumer_name (str): The newly created consumer.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The newly created consumer.
 
         Command response:
             bool: True if the consumer is created. Otherwise, returns False.
@@ -2233,7 +2242,10 @@ class BaseTransaction:
         )
 
     def xgroup_del_consumer(
-        self: TTransaction, key: str, group_name: str, consumer_name: str
+        self: TTransaction,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
     ) -> TTransaction:
         """
         Deletes a consumer named `consumer_name` in the consumer group `group_name` for the stream stored at `key`.
@@ -2241,9 +2253,9 @@ class BaseTransaction:
         See https://valkey.io/commands/xgroup-delconsumer for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            consumer_name (str): The consumer to delete.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The consumer to delete.
 
         Command response:
             int: The number of pending messages the `consumer` had before it was deleted.
@@ -2254,9 +2266,9 @@ class BaseTransaction:
 
     def xgroup_set_id(
         self: TTransaction,
-        key: str,
-        group_name: str,
-        stream_id: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        stream_id: Union[str, bytes],
         entries_read_id: Optional[str] = None,
     ) -> TTransaction:
         """
@@ -2265,9 +2277,9 @@ class BaseTransaction:
         See https://valkey.io/commands/xgroup-setid for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            stream_id (str): The stream entry ID that should be set as the last delivered ID for the consumer group.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            stream_id (Union[str, bytes]): The stream entry ID that should be set as the last delivered ID for the consumer group.
             entries_read_id (Optional[str]): An arbitrary ID (that isn't the first ID, last ID, or the zero ID ("0-0"))
                 used to find out how many entries are between the arbitrary ID (excluding it) and the stream's last
                 entry. This argument can only be specified if you are using Redis version 7.0.0 or above.
@@ -2283,9 +2295,9 @@ class BaseTransaction:
 
     def xreadgroup(
         self: TTransaction,
-        keys_and_ids: Mapping[str, str],
-        group_name: str,
-        consumer_name: str,
+        keys_and_ids: Mapping[Union[str, bytes], Union[str, bytes]],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
         options: Optional[StreamReadGroupOptions] = None,
     ) -> TTransaction:
         """
@@ -2294,15 +2306,15 @@ class BaseTransaction:
         See https://valkey.io/commands/xreadgroup for more details.
 
         Args:
-            keys_and_ids (Mapping[str, str]): A mapping of stream keys to stream entry IDs to read from. The special ">"
+            keys_and_ids (Mapping[Union[str, bytes], Union[str, bytes]]): A mapping of stream keys to stream entry IDs to read from. The special ">"
                 ID returns messages that were never delivered to any other consumer. Any other valid ID will return
                 entries pending for the consumer with IDs greater than the one provided.
-            group_name (str): The consumer group name.
-            consumer_name (str): The consumer name. The consumer will be auto-created if it does not already exist.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The consumer name. The consumer will be auto-created if it does not already exist.
             options (Optional[StreamReadGroupOptions]): Options detailing how to read the stream.
 
         Command response:
-            Optional[Mapping[str, Mapping[str, Optional[List[List[str]]]]]]: A mapping of stream keys, to a mapping of
+            Optional[Mapping[bytes, Mapping[bytes, Optional[List[List[bytes]]]]]]: A mapping of stream keys, to a mapping of
                 stream IDs, to a list of pairings with format `[[field, entry], [field, entry], ...]`.
                 Returns None if the BLOCK option is given and a timeout occurs, or if there is no stream that can be served.
         """
@@ -2318,9 +2330,9 @@ class BaseTransaction:
 
     def xack(
         self: TTransaction,
-        key: str,
-        group_name: str,
-        ids: List[str],
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        ids: List[Union[str, bytes]],
     ) -> TTransaction:
         """
         Removes one or multiple messages from the Pending Entries List (PEL) of a stream consumer group.
@@ -2330,9 +2342,9 @@ class BaseTransaction:
         See https://valkey.io/commands/xack for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            ids (List[str]): The stream entry IDs to acknowledge and consume for the given consumer group.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            ids (List[Union[str, bytes]]): The stream entry IDs to acknowledge and consume for the given consumer group.
 
         Command response:
             int: The number of messages that were successfully acknowledged.
@@ -2341,8 +2353,8 @@ class BaseTransaction:
 
     def xpending(
         self: TTransaction,
-        key: str,
-        group_name: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns stream message summary information for pending messages for the given consumer group.
@@ -2350,11 +2362,11 @@ class BaseTransaction:
         See https://valkey.io/commands/xpending for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
 
         Command response:
-            List[Union[int, str, List[List[str]], None]]: A list that includes the summary of pending messages, with the
+            List[Union[int, bytes, List[List[bytes]], None]]: A list that includes the summary of pending messages, with the
                 format `[num_group_messages, start_id, end_id, [[consumer_name, num_consumer_messages]]]`, where:
                 - `num_group_messages`: The total number of pending messages for this consumer group.
                 - `start_id`: The smallest ID among the pending messages.
@@ -2368,8 +2380,8 @@ class BaseTransaction:
 
     def xpending_range(
         self: TTransaction,
-        key: str,
-        group_name: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
         start: StreamRangeBound,
         end: StreamRangeBound,
         count: int,
@@ -2381,8 +2393,8 @@ class BaseTransaction:
         See https://valkey.io/commands/xpending for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
             start (StreamRangeBound): The starting stream ID bound for the range.
                 - Use `IdBound` to specify a stream ID.
                 - Use `ExclusiveIdBound` to specify an exclusive bounded stream ID.
@@ -2409,11 +2421,11 @@ class BaseTransaction:
 
     def xautoclaim(
         self: TTransaction,
-        key: str,
-        group_name: str,
-        consumer_name: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
         min_idle_time_ms: int,
-        start: str,
+        start: Union[str, bytes],
         count: Optional[int] = None,
     ) -> TTransaction:
         """
@@ -2422,16 +2434,16 @@ class BaseTransaction:
         See https://valkey.io/commands/xautoclaim for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            consumer_name (str): The consumer name.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The consumer name.
             min_idle_time_ms (int): Filters the claimed entries to those that have been idle for more than the specified
                 value.
-            start (str): Filters the claimed entries to those that have an ID equal or greater than the specified value.
+            start (Union[str, bytes]): Filters the claimed entries to those that have an ID equal or greater than the specified value.
             count (Optional[int]): Limits the number of claimed entries to the specified value.
 
         Command response:
-            List[Union[str, Mapping[str, List[List[str]]], List[str]]]: A list containing the following elements:
+            List[Union[str, Mapping[bytes, List[List[bytes]]], List[bytes]]]: A list containing the following elements:
                 - A stream ID to be used as the start argument for the next call to `XAUTOCLAIM`. This ID is equivalent
                 to the next ID in the stream after the entries that were scanned, or "0-0" if the entire stream was
                 scanned.
@@ -2451,11 +2463,11 @@ class BaseTransaction:
 
     def xautoclaim_just_id(
         self: TTransaction,
-        key: str,
-        group_name: str,
-        consumer_name: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
         min_idle_time_ms: int,
-        start: str,
+        start: Union[str, bytes],
         count: Optional[int] = None,
     ) -> TTransaction:
         """
@@ -2466,16 +2478,16 @@ class BaseTransaction:
         See https://valkey.io/commands/xautoclaim for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            consumer_name (str): The consumer name.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The consumer name.
             min_idle_time_ms (int): Filters the claimed entries to those that have been idle for more than the specified
                 value.
-            start (str): Filters the claimed entries to those that have an ID equal or greater than the specified value.
+            start (Union[str, bytes]): Filters the claimed entries to those that have an ID equal or greater than the specified value.
             count (Optional[int]): Limits the number of claimed entries to the specified value.
 
         Command response:
-            List[Union[str, List[str]]]: A list containing the following elements:
+            List[Union[bytes, List[bytes]]]: A list containing the following elements:
                 - A stream ID to be used as the start argument for the next call to `XAUTOCLAIM`. This ID is equivalent
                 to the next ID in the stream after the entries that were scanned, or "0-0" if the entire stream was
                 scanned.
@@ -4184,8 +4196,8 @@ class BaseTransaction:
 
     def sscan(
         self: TTransaction,
-        key: str,
-        cursor: str,
+        key: Union[str, bytes],
+        cursor: Union[str, bytes],
         match: Optional[str] = None,
         count: Optional[int] = None,
     ) -> TTransaction:
@@ -4195,8 +4207,8 @@ class BaseTransaction:
         See https://valkey.io/commands/sscan for more details.
 
         Args:
-            key (str): The key of the set.
-            cursor (str): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (Union[str, bytes]): The key of the set.
+            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
             match (Optional[str]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the set is large enough for scan commands to return only a
@@ -4208,7 +4220,7 @@ class BaseTransaction:
                 as compact single-allocation packed encoding.
 
         Command Response:
-            List[Union[str, List[str]]]: An `Array` of the `cursor` and the subset of the set held by `key`.
+            List[Union[bytes, List[bytes]]]: An `Array` of the `cursor` and the subset of the set held by `key`.
                 The first element is always the `cursor` for the next iteration of results. `0` will be the `cursor`
                 returned on the last iteration of the set. The second element is always an `Array` of the subset of the
                 set held in `key`.
@@ -4223,8 +4235,8 @@ class BaseTransaction:
 
     def zscan(
         self: TTransaction,
-        key: str,
-        cursor: str,
+        key: Union[str, bytes],
+        cursor: Union[str, bytes],
         match: Optional[str] = None,
         count: Optional[int] = None,
     ) -> TTransaction:
@@ -4234,8 +4246,8 @@ class BaseTransaction:
         See https://valkey.io/commands/zscan for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            cursor (str): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (Union[str, bytes]): The key of the sorted set.
+            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
             match (Optional[str]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the sorted set is large enough for scan commands to return
@@ -4247,7 +4259,7 @@ class BaseTransaction:
                 represent the results as compact single-allocation packed encoding.
 
         Returns:
-            List[Union[str, List[str]]]: An `Array` of the `cursor` and the subset of the sorted set held by `key`.
+            List[Union[bytes, List[bytes]]]: An `Array` of the `cursor` and the subset of the sorted set held by `key`.
                 The first element is always the `cursor` for the next iteration of results. `0` will be the `cursor`
                 returned on the last iteration of the sorted set. The second element is always an `Array` of the subset
                 of the sorted set held in `key`. The `Array` in the second element is always a flattened series of
@@ -4263,8 +4275,8 @@ class BaseTransaction:
 
     def hscan(
         self: TTransaction,
-        key: str,
-        cursor: str,
+        key: Union[str, bytes],
+        cursor: Union[str, bytes],
         match: Optional[str] = None,
         count: Optional[int] = None,
     ) -> TTransaction:
@@ -4274,8 +4286,8 @@ class BaseTransaction:
         See https://valkey.io/commands/hscan for more details.
 
         Args:
-            key (str): The key of the set.
-            cursor (str): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (Union[str, bytes]): The key of the set.
+            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
             match (Optional[str]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the hash is large enough for scan commands to return only a
@@ -4287,7 +4299,7 @@ class BaseTransaction:
                 as compact single-allocation packed encoding.
 
         Returns:
-            List[Union[str, List[str]]]: An `Array` of the `cursor` and the subset of the hash held by `key`.
+            List[Union[bytes, List[bytes]]]: An `Array` of the `cursor` and the subset of the hash held by `key`.
                 The first element is always the `cursor` for the next iteration of results. `0` will be the `cursor`
                 returned on the last iteration of the hash. The second element is always an `Array` of the subset of the
                 hash held in `key`. The `Array` in the second element is always a flattened series of `String` pairs,
@@ -4303,8 +4315,8 @@ class BaseTransaction:
 
     def lcs(
         self: TTransaction,
-        key1: str,
-        key2: str,
+        key1: Union[str, bytes],
+        key2: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns the longest common subsequence between strings stored at key1 and key2.
@@ -4318,8 +4330,8 @@ class BaseTransaction:
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (str): The key that stores the first string.
-            key2 (str): The key that stores the second string.
+            key1 (Union[str, bytes]): The key that stores the first string.
+            key2 (Union[str, bytes]): The key that stores the second string.
 
         Command Response:
             A String containing the longest common subsequence between the 2 strings.
@@ -4333,8 +4345,8 @@ class BaseTransaction:
 
     def lcs_len(
         self: TTransaction,
-        key1: str,
-        key2: str,
+        key1: Union[str, bytes],
+        key2: Union[str, bytes],
     ) -> TTransaction:
         """
         Returns the length of the longest common subsequence between strings stored at key1 and key2.
@@ -4348,8 +4360,8 @@ class BaseTransaction:
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (str): The key that stores the first string.
-            key2 (str): The key that stores the second string.
+            key1 (Union[str, bytes]): The key that stores the first string.
+            key2 (Union[str, bytes]): The key that stores the second string.
 
         Command Response:
             The length of the longest common subsequence between the 2 strings.
@@ -4362,8 +4374,8 @@ class BaseTransaction:
 
     def lcs_idx(
         self: TTransaction,
-        key1: str,
-        key2: str,
+        key1: Union[str, bytes],
+        key2: Union[str, bytes],
         min_match_len: Optional[int] = None,
         with_match_len: Optional[bool] = False,
     ) -> TTransaction:
@@ -4379,8 +4391,8 @@ class BaseTransaction:
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (str): The key that stores the first string.
-            key2 (str): The key that stores the second string.
+            key1 (Union[str, bytes]): The key that stores the first string.
+            key2 (Union[str, bytes]): The key that stores the second string.
             min_match_len (Optional[int]): The minimum length of matches to include in the result.
             with_match_len (Optional[bool]): If True, include the length of the substring matched for each substring.
 
@@ -4576,8 +4588,8 @@ class Transaction(BaseTransaction):
 
     def copy(
         self: TTransaction,
-        source: str,
-        destination: str,
+        source: Union[str, bytes],
+        destination: Union[str, bytes],
         destinationDB: Optional[int] = None,
         replace: Optional[bool] = None,
     ) -> TTransaction:
@@ -4590,8 +4602,8 @@ class Transaction(BaseTransaction):
         See https://valkey.io/commands/copy for more details.
 
         Args:
-            source (str): The key to the source value.
-            destination (str): The key where the value should be copied to.
+            source (Union[str, bytes]): The key to the source value.
+            destination (Union[str, bytes]): The key where the value should be copied to.
             destinationDB (Optional[int]): The alternative logical database index for the destination key.
             replace (Optional[bool]): If the destination key should be removed before copying the value to it.
 
@@ -4677,8 +4689,8 @@ class ClusterTransaction(BaseTransaction):
 
     def copy(
         self: TTransaction,
-        source: str,
-        destination: str,
+        source: Union[str, bytes],
+        destination: Union[str, bytes],
         replace: Optional[bool] = None,
     ) -> TTransaction:
         """
@@ -4688,8 +4700,8 @@ class ClusterTransaction(BaseTransaction):
         See https://valkey.io/commands/copy for more details.
 
         Args:
-            source (str): The key to the source value.
-            destination (str): The key where the value should be copied to.
+            source (Union[str, bytes]): The key to the source value.
+            destination (Union[str, bytes]): The key where the value should be copied to.
             replace (Optional[bool]): If the destination key should be removed before copying the value to it.
 
         Command response:

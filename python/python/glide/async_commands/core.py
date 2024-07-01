@@ -3224,25 +3224,25 @@ class CoreCommands(Protocol):
 
     async def xautoclaim(
         self,
-        key: str,
-        group_name: str,
-        consumer_name: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
         min_idle_time_ms: int,
-        start: str,
+        start: Union[str, bytes],
         count: Optional[int] = None,
-    ) -> List[Union[str, Mapping[str, List[List[str]]], List[str]]]:
+    ) -> List[Union[bytes, Mapping[bytes, List[List[bytes]]], List[bytes]]]:
         """
         Transfers ownership of pending stream entries that match the specified criteria.
 
         See https://valkey.io/commands/xautoclaim for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            consumer_name (str): The consumer name.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The consumer name.
             min_idle_time_ms (int): Filters the claimed entries to those that have been idle for more than the specified
                 value.
-            start (str): Filters the claimed entries to those that have an ID equal or greater than the specified value.
+            start (Union[str, bytes]): Filters the claimed entries to those that have an ID equal or greater than the specified value.
             count (Optional[int]): Limits the number of claimed entries to the specified value.
 
         Returns:
@@ -3260,11 +3260,11 @@ class CoreCommands(Protocol):
             # Redis version < 7.0.0:
             >>> await client.xautoclaim("my_stream", "my_group", "my_consumer", 3_600_000, "0-0")
                 [
-                    "0-0",
+                    b"0-0",
                     {
-                        "1-1": [
-                            ["field1", "value1"],
-                            ["field2", "value2"],
+                        b"1-1": [
+                            [b"field1", b"value1"],
+                            [b"field2", b"value2"],
                         ]
                     }
                 ]
@@ -3274,14 +3274,14 @@ class CoreCommands(Protocol):
             # Redis version 7.0.0 and above:
             >>> await client.xautoclaim("my_stream", "my_group", "my_consumer", 3_600_000, "0-0")
                 [
-                    "0-0",
+                    b"0-0",
                     {
-                        "1-1": [
-                            ["field1", "value1"],
-                            ["field2", "value2"],
+                        b"1-1": [
+                            [b"field1", b"value1"],
+                            [b"field2", b"value2"],
                         ]
                     },
-                    ["1-2"]
+                    [b"1-2"]
                 ]
                 # Stream entry "1-1" was idle for over an hour and was thus claimed by "my_consumer". The entire stream
                 # was scanned. Additionally, entry "1-2" was removed from the Pending Entries List because it no longer
@@ -3289,24 +3289,30 @@ class CoreCommands(Protocol):
 
         Since: Redis version 6.2.0.
         """
-        args = [key, group_name, consumer_name, str(min_idle_time_ms), start]
+        args: List[Union[str, bytes]] = [
+            key,
+            group_name,
+            consumer_name,
+            str(min_idle_time_ms),
+            start,
+        ]
         if count is not None:
             args.extend(["COUNT", str(count)])
 
         return cast(
-            List[Union[str, Mapping[str, List[List[str]]], List[str]]],
+            List[Union[bytes, Mapping[bytes, List[List[bytes]]], List[bytes]]],
             await self._execute_command(RequestType.XAutoClaim, args),
         )
 
     async def xautoclaim_just_id(
         self,
-        key: str,
-        group_name: str,
-        consumer_name: str,
+        key: Union[str, bytes],
+        group_name: Union[str, bytes],
+        consumer_name: Union[str, bytes],
         min_idle_time_ms: int,
-        start: str,
+        start: Union[str, bytes],
         count: Optional[int] = None,
-    ) -> List[Union[str, List[str]]]:
+    ) -> List[Union[bytes, List[bytes]]]:
         """
         Transfers ownership of pending stream entries that match the specified criteria. This command uses the JUSTID
         argument to further specify that the return value should contain a list of claimed IDs without their
@@ -3315,16 +3321,16 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xautoclaim for more details.
 
         Args:
-            key (str): The key of the stream.
-            group_name (str): The consumer group name.
-            consumer_name (str): The consumer name.
+            key (Union[str, bytes]): The key of the stream.
+            group_name (Union[str, bytes]): The consumer group name.
+            consumer_name (Union[str, bytes]): The consumer name.
             min_idle_time_ms (int): Filters the claimed entries to those that have been idle for more than the specified
                 value.
-            start (str): Filters the claimed entries to those that have an ID equal or greater than the specified value.
+            start (Union[str, bytes]): Filters the claimed entries to those that have an ID equal or greater than the specified value.
             count (Optional[int]): Limits the number of claimed entries to the specified value.
 
         Returns:
-            List[Union[str, List[str]]]: A list containing the following elements:
+            List[Union[bytes, List[bytes]]]: A list containing the following elements:
                 - A stream ID to be used as the start argument for the next call to `XAUTOCLAIM`. This ID is equivalent
                 to the next ID in the stream after the entries that were scanned, or "0-0" if the entire stream was
                 scanned.
@@ -3349,7 +3355,13 @@ class CoreCommands(Protocol):
 
         Since: Redis version 6.2.0.
         """
-        args = [key, group_name, consumer_name, str(min_idle_time_ms), start]
+        args: List[Union[str, bytes]] = [
+            key,
+            group_name,
+            consumer_name,
+            str(min_idle_time_ms),
+            start,
+        ]
         if count is not None:
             args.extend(["COUNT", str(count)])
 
@@ -5714,21 +5726,21 @@ class CoreCommands(Protocol):
 
     async def zscan(
         self,
-        key: str,
-        cursor: str,
-        match: Optional[str] = None,
+        key: Union[str, bytes],
+        cursor: Union[str, bytes],
+        match: Optional[Union[str, bytes]] = None,
         count: Optional[int] = None,
-    ) -> List[Union[str, List[str]]]:
+    ) -> List[Union[bytes, List[bytes]]]:
         """
         Iterates incrementally over a sorted set.
 
         See https://valkey.io/commands/zscan for more details.
 
         Args:
-            key (str): The key of the sorted set.
-            cursor (str): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (Union[str, bytes]): The key of the sorted set.
+            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
-            match (Optional[str]): The match filter is applied to the result of the command and will only include
+            match (Optional[Union[str, bytes]]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the sorted set is large enough for scan commands to return
                 only a subset of the sorted set then there could be a case where the result is empty although there are
                 items that match the pattern specified. This is due to the default `COUNT` being `10` which indicates
@@ -5738,7 +5750,7 @@ class CoreCommands(Protocol):
                 represent the results as compact single-allocation packed encoding.
 
         Returns:
-            List[Union[str, List[str]]]: An `Array` of the `cursor` and the subset of the sorted set held by `key`.
+            List[Union[bytes, List[bytes]]]: An `Array` of the `cursor` and the subset of the sorted set held by `key`.
                 The first element is always the `cursor` for the next iteration of results. `0` will be the `cursor`
                 returned on the last iteration of the sorted set. The second element is always an `Array` of the subset
                 of the sorted set held in `key`. The `Array` in the second element is always a flattened series of
@@ -5755,14 +5767,14 @@ class CoreCommands(Protocol):
             ...     if new_cursor == "0":
             ...         break
             ...     result_cursor = new_cursor
-            Cursor:  123
-            Members:  ['value 163', '163', 'value 114', '114', 'value 25', '25', 'value 82', '82', 'value 64', '64']
-            Cursor:  47
-            Members:  ['value 39', '39', 'value 127', '127', 'value 43', '43', 'value 139', '139', 'value 211', '211']
-            Cursor:  0
-            Members:  ['value 55', '55', 'value 24', '24', 'value 90', '90', 'value 113', '113']
+            Cursor: 123
+            Members: [b'value 163', b'163', b'value 114', b'114', b'value 25', b'25', b'value 82', b'82', b'value 64', b'64']
+            Cursor: 47
+            Members: [b'value 39', b'39', b'value 127', b'127', b'value 43', b'43', b'value 139', b'139', b'value 211', b'211']
+            Cursor: 0
+            Members: [b'value 55', b'55', b'value 24', b'24', b'value 90', b'90', b'value 113', b'113']
         """
-        args = [key, cursor]
+        args: List[Union[str, bytes]] = [key, cursor]
         if match is not None:
             args += ["MATCH", match]
         if count is not None:
@@ -5775,21 +5787,21 @@ class CoreCommands(Protocol):
 
     async def hscan(
         self,
-        key: str,
-        cursor: str,
-        match: Optional[str] = None,
+        key: Union[str, bytes],
+        cursor: Union[str, bytes],
+        match: Optional[Union[str, bytes]] = None,
         count: Optional[int] = None,
-    ) -> List[Union[str, List[str]]]:
+    ) -> List[Union[bytes, List[bytes]]]:
         """
         Iterates incrementally over a hash.
 
         See https://valkey.io/commands/hscan for more details.
 
         Args:
-            key (str): The key of the set.
-            cursor (str): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (Union[str, bytes]): The key of the set.
+            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
-            match (Optional[str]): The match filter is applied to the result of the command and will only include
+            match (Optional[Union[str, bytes]]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the hash is large enough for scan commands to return only a
                 subset of the hash then there could be a case where the result is empty although there are items that
                 match the pattern specified. This is due to the default `COUNT` being `10` which indicates that it will
@@ -5799,7 +5811,7 @@ class CoreCommands(Protocol):
                 as compact single-allocation packed encoding.
 
         Returns:
-            List[Union[str, List[str]]]: An `Array` of the `cursor` and the subset of the hash held by `key`.
+            List[Union[bytes, List[bytes]]]: An `Array` of the `cursor` and the subset of the hash held by `key`.
                 The first element is always the `cursor` for the next iteration of results. `0` will be the `cursor`
                 returned on the last iteration of the hash. The second element is always an `Array` of the subset of the
                 hash held in `key`. The `Array` in the second element is always a flattened series of `String` pairs,
@@ -5816,14 +5828,14 @@ class CoreCommands(Protocol):
             ...     if new_cursor == "0":
             ...         break
             ...     result_cursor = new_cursor
-            Cursor:  31
-            Members:  ['field 79', 'value 79', 'field 20', 'value 20', 'field 115', 'value 115']
-            Cursor:  39
-            Members:  ['field 63', 'value 63', 'field 293', 'value 293', 'field 162', 'value 162']
-            Cursor:  0
-            Members:  ['field 420', 'value 420', 'field 221', 'value 221']
+            Cursor: 1
+            Members: [b'field 79', b'value 79', b'field 20', b'value 20', b'field 115', b'value 115']
+            Cursor: 39
+            Members: [b'field 63', b'value 63', b'field 293', b'value 293', b'field 162', b'value 162']
+            Cursor: 0
+            Members: [b'field 420', b'value 420', b'field 221', b'value 221']
         """
-        args = [key, cursor]
+        args: List[Union[str, bytes]] = [key, cursor]
         if match is not None:
             args += ["MATCH", match]
         if count is not None:
@@ -5966,9 +5978,9 @@ class CoreCommands(Protocol):
 
     async def lcs(
         self,
-        key1: str,
-        key2: str,
-    ) -> str:
+        key1: Union[str, bytes],
+        key2: Union[str, bytes],
+    ) -> bytes:
         """
         Returns the longest common subsequence between strings stored at key1 and key2.
 
@@ -5981,32 +5993,32 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (str): The key that stores the first string.
-            key2 (str): The key that stores the second string.
+            key1 (Union[str, bytes]): The key that stores the first string.
+            key2 (Union[str, bytes]): The key that stores the second string.
 
         Returns:
-            A String containing the longest common subsequence between the 2 strings.
+            A Bytes String containing the longest common subsequence between the 2 strings.
             An empty String is returned if the keys do not exist or have no common subsequences.
 
         Examples:
             >>> await client.mset({"testKey1" : "abcd", "testKey2": "axcd"})
-                'OK'
+                b'OK'
             >>> await client.lcs("testKey1", "testKey2")
-                'acd'
+                b'acd'
 
         Since: Redis version 7.0.0.
         """
         args: List[Union[str, bytes]] = [key1, key2]
 
         return cast(
-            str,
+            bytes,
             await self._execute_command(RequestType.LCS, args),
         )
 
     async def lcs_len(
         self,
-        key1: str,
-        key2: str,
+        key1: Union[str, bytes],
+        key2: Union[str, bytes],
     ) -> int:
         """
         Returns the length of the longest common subsequence between strings stored at key1 and key2.
@@ -6020,8 +6032,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (str): The key that stores the first string.
-            key2 (str): The key that stores the second string.
+            key1 (Union[str, bytes]): The key that stores the first string.
+            key2 (Union[str, bytes]): The key that stores the second string.
 
         Returns:
             The length of the longest common subsequence between the 2 strings.
@@ -6030,7 +6042,7 @@ class CoreCommands(Protocol):
             >>> await client.mset({"testKey1" : "abcd", "testKey2": "axcd"})
                 'OK'
             >>> await client.lcs_len("testKey1", "testKey2")
-                3  # the length of the longest common subsequence between these 2 strings ("acd") is 3.
+                3  # the length of the longest common subsequence between these 2 strings (b"acd") is 3.
 
         Since: Redis version 7.0.0.
         """
@@ -6043,11 +6055,11 @@ class CoreCommands(Protocol):
 
     async def lcs_idx(
         self,
-        key1: str,
-        key2: str,
+        key1: Union[str, bytes],
+        key2: Union[str, bytes],
         min_match_len: Optional[int] = None,
         with_match_len: Optional[bool] = False,
-    ) -> Mapping[str, Union[list[list[Union[list[int], int]]], int]]:
+    ) -> Mapping[bytes, Union[list[list[Union[list[int], int]]], int]]:
         """
         Returns the indices and length of the longest common subsequence between strings stored at key1 and key2.
 
@@ -6060,8 +6072,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (str): The key that stores the first string.
-            key2 (str): The key that stores the second string.
+            key1 (Union[str, bytes]): The key that stores the first string.
+            key2 (Union[str, bytes]): The key that stores the second string.
             min_match_len (Optional[int]): The minimum length of matches to include in the result.
             with_match_len (Optional[bool]): If True, include the length of the substring matched for each substring.
 
@@ -6079,44 +6091,44 @@ class CoreCommands(Protocol):
                 'OK'
             >>> await client.lcs_idx("testKey1", "testKey2")
                 {
-                    'matches': [
+                    b'matches': [
                         [
-                            [4, 7],  # starting and ending indices of the subsequence "1234" in "abcd1234" (testKey1)
-                            [5, 8],  # starting and ending indices of the subsequence "1234" in "bcdef1234" (testKey2)
+                            [4, 7],  # starting and ending indices of the subsequence b"1234" in b"abcd1234" (testKey1)
+                            [5, 8],  # starting and ending indices of the subsequence b"1234" in b"bcdef1234" (testKey2)
                         ],
                         [
-                            [1, 3],  # starting and ending indices of the subsequence "bcd" in "abcd1234" (testKey1)
-                            [0, 2],  # starting and ending indices of the subsequence "bcd" in "bcdef1234" (testKey2)
+                            [1, 3],  # starting and ending indices of the subsequence b"bcd" in b"abcd1234" (testKey1)
+                            [0, 2],  # starting and ending indices of the subsequence b"bcd" in b"bcdef1234" (testKey2)
                         ],
                     ],
-                    'len': 7  # length of the entire longest common subsequence
+                    b'len': 7  # length of the entire longest common subsequence
                 }
             >>> await client.lcs_idx("testKey1", "testKey2", min_match_len=4)
                 {
-                    'matches': [
+                    b'matches': [
                         [
                             [4, 7],
                             [5, 8],
                         ],
                         # the other match with a length of 3 is excluded
                     ],
-                    'len': 7
+                    b'len': 7
                 }
             >>> await client.lcs_idx("testKey1", "testKey2", with_match_len=True)
                 {
-                    'matches': [
+                    b'matches': [
                         [
                             [4, 7],
                             [5, 8],
-                            4,  # length of this match ("1234")
+                            4,  # length of this match (b"1234")
                         ],
                         [
                             [1, 3],
                             [0, 2],
-                            3,  # length of this match ("bcd")
+                            3,  # length of this match (b"bcd")
                         ],
                     ],
-                    'len': 7
+                    b'len': 7
                 }
 
         Since: Redis version 7.0.0.
@@ -6130,6 +6142,6 @@ class CoreCommands(Protocol):
             args.append("WITHMATCHLEN")
 
         return cast(
-            Mapping[str, Union[list[list[Union[list[int], int]]], int]],
+            Mapping[bytes, Union[list[list[Union[list[int], int]]], int]],
             await self._execute_command(RequestType.LCS, args),
         )

@@ -215,14 +215,14 @@ class BaseClient(CoreCommands):
     # TODO: change `List[str]` to `List[TEncodable]` where `TEncodable = Union[str, bytes]`
     def _encode_and_sum_size(
         self,
-        args_list: Optional[List[str]],
+        args_list: Optional[List[Union[str, bytes]]],
     ) -> Tuple[List[bytes], int]:
         """
         Encodes the list and calculates the total memory size.
 
         Args:
-            args_list (Optional[List[str]]): A list of strings to be converted to bytes.
-                                                    If None or empty, returns ([], 0).
+            args_list (Optional[List[Union[str, bytes]]]): A list of strings to be converted to bytes.
+                                                           If None or empty, returns ([], 0).
 
         Returns:
             int: The total memory size of the encoded arguments in bytes.
@@ -232,7 +232,7 @@ class BaseClient(CoreCommands):
         if not args_list:
             return (encoded_args_list, args_size)
         for arg in args_list:
-            encoded_arg = self._encode_arg(arg)
+            encoded_arg = self._encode_arg(arg) if isinstance(arg, str) else arg
             encoded_args_list.append(encoded_arg)
             args_size += sys.getsizeof(encoded_arg)
         return (encoded_args_list, args_size)
