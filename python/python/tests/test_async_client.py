@@ -1039,7 +1039,7 @@ class TestCommands:
         value_list: List[TEncodable] = ["value4", "value3", "value2", "value1"]
 
         assert await redis_client.lpush(key, value_list) == 4
-        assert await redis_client.lpop(key) == value_list[-1]
+        assert await redis_client.lpop(key) == value_list[-1].encode()
         assert await redis_client.lrange(key, 0, -1) == convert_string_to_bytes_object(
             value_list[-2::-1]
         )
@@ -1226,7 +1226,7 @@ class TestCommands:
         value_list: List[TEncodable] = ["value4", "value3", "value2", "value1"]
 
         assert await redis_client.rpush(key, value_list) == 4
-        assert await redis_client.rpop(key) == value_list[-1]
+        assert await redis_client.rpop(key) == value_list[-1].encode()
 
         assert await redis_client.rpop_count(key, 2) == convert_string_to_bytes_object(
             value_list[-2:0:-1]
@@ -2441,7 +2441,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_geosearch_by_radius(self, redis_client: TGlideClient):
         key = get_random_string(10)
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
             "edge1": GeospatialData(12.758489, 38.788135),
@@ -2516,7 +2516,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_geosearch_no_result(self, redis_client: TGlideClient):
         key = get_random_string(10)
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
             "edge1": GeospatialData(12.758489, 38.788135),
@@ -2579,7 +2579,7 @@ class TestCommands:
     async def test_geosearchstore_by_box(self, redis_client: TGlideClient):
         key = f"{{testKey}}:{get_random_string(10)}"
         destination_key = f"{{testKey}}:{get_random_string(8)}"
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
             "edge1": GeospatialData(12.758489, 38.788135),
@@ -2695,7 +2695,7 @@ class TestCommands:
     async def test_geosearchstore_by_radius(self, redis_client: TGlideClient):
         key = f"{{testKey}}:{get_random_string(10)}"
         destination_key = f"{{testKey}}:{get_random_string(8)}"
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
             "edge1": GeospatialData(12.758489, 38.788135),
@@ -2808,7 +2808,7 @@ class TestCommands:
     async def test_geosearchstore_no_result(self, redis_client: TGlideClient):
         key = f"{{testKey}}:{get_random_string(10)}"
         destination_key = f"{{testKey}}:{get_random_string(8)}"
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
             "edge1": GeospatialData(12.758489, 38.788135),
@@ -2880,7 +2880,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_geohash(self, redis_client: TGlideClient):
         key = get_random_string(10)
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
         }
@@ -2915,7 +2915,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_geodist(self, redis_client: TGlideClient):
         key, key2 = get_random_string(10), get_random_string(10)
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
         }
@@ -2942,7 +2942,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_geopos(self, redis_client: TGlideClient):
         key = get_random_string(10)
-        members_coordinates = {
+        members_coordinates: Mapping[TEncodable, GeospatialData] = {
             "Palermo": GeospatialData(13.361389, 38.115556),
             "Catania": GeospatialData(15.087269, 37.502669),
         }
@@ -3121,7 +3121,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_zremrangebyscore(self, redis_client: TGlideClient):
         key = get_random_string(10)
-        members_scores = {"one": 1, "two": 2, "three": 3}
+        members_scores: Mapping[TEncodable, float] = {"one": 1, "two": 2, "three": 3}
         assert await redis_client.zadd(key, members_scores) == 3
 
         assert (
@@ -3625,7 +3625,7 @@ class TestCommands:
 
         # Empty list check
         with pytest.raises(RequestError) as e:
-            await redis_client.zunionstore("{xyz}", cast(TEncodable, []))
+            await redis_client.zunionstore("{xyz}", cast(List[TEncodable], []))
         assert "wrong number of arguments" in str(e)
 
         with pytest.raises(RequestError) as e:
@@ -3633,7 +3633,7 @@ class TestCommands:
         assert "wrong number of arguments" in str(e)
 
         with pytest.raises(RequestError) as e:
-            await redis_client.zunion_withscores(cast(Mapping[TEncodable, float],[]))
+            await redis_client.zunion_withscores(cast(List[TEncodable],[]))
         assert "at least 1 input key is needed" in str(e)
 
     @pytest.mark.parametrize("cluster_mode", [True, False])
@@ -4212,7 +4212,7 @@ class TestCommands:
     @pytest.mark.parametrize("protocol", [ProtocolVersion.RESP2, ProtocolVersion.RESP3])
     async def test_zrank(self, redis_client: TGlideClient):
         key = get_random_string(10)
-        members_scores = {"one": 1.5, "two": 2, "three": 3}
+        members_scores: Mapping[TEncodable, float] = {"one": 1.5, "two": 2, "three": 3}
         assert await redis_client.zadd(key, members_scores) == 3
         assert await redis_client.zrank(key, "one") == 0
         if not await check_if_server_version_lt(redis_client, "7.2.0"):
@@ -4235,7 +4235,7 @@ class TestCommands:
         key = get_random_string(10)
         non_existing_key = get_random_string(10)
         string_key = get_random_string(10)
-        member_scores = {"one": 1.0, "two": 2.0, "three": 3.0}
+        member_scores: Mapping[TEncodable, float] = {"one": 1.0, "two": 2.0, "three": 3.0}
 
         assert await redis_client.zadd(key, member_scores) == 3
         assert await redis_client.zrevrank(key, "three") == 0
@@ -8288,10 +8288,10 @@ class TestClusterRoutes:
         result_cursor_index = 0
         result_collection_index = 1
         default_count = 10
-        num_members = list(
+        num_members: List[TEncodable] = list(
             map(str, range(50000))
         )  # Use large dataset to force an iterative cursor.
-        char_members = ["a", "b", "c", "d", "e"]
+        char_members: List[TEncodable] = ["a", "b", "c", "d", "e"]
 
         # Empty set
         result = await redis_client.sscan(key1, initial_cursor)

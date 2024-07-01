@@ -174,7 +174,6 @@ def convert_bytes_to_string_object(
 
 
 def convert_string_to_bytes_object(
-    # TODO: remove the bytes options
     string_structure: Optional[
         Union[
             List[Any],
