@@ -10,7 +10,7 @@ from glide.async_commands.cluster_commands import ClusterCommands
 from glide.async_commands.core import CoreCommands
 from glide.async_commands.standalone_commands import StandaloneCommands
 from glide.config import BaseClientConfiguration
-from glide.constants import DEFAULT_READ_BYTES_SIZE, OK, TRequest, TResult
+from glide.constants import DEFAULT_READ_BYTES_SIZE, OK, TEncodable, TRequest, TResult
 from glide.exceptions import (
     ClosingError,
     ConfigurationError,
@@ -197,7 +197,7 @@ class BaseClient(CoreCommands):
         self._writer.write(b_arr)
         await self._writer.drain()
 
-    # TODO: change `str` to `TEncodable` where `TEncodable = Union[str, bytes]`
+    # TODO: change `str` to `TEncodable` where `TEncodable = TEncodable`
     def _encode_arg(self, arg: str) -> bytes:
         """
         Converts a string argument to bytes.
@@ -212,16 +212,16 @@ class BaseClient(CoreCommands):
         # TODO: Allow passing different encoding options
         return bytes(arg, encoding="utf8")
 
-    # TODO: change `List[str]` to `List[TEncodable]` where `TEncodable = Union[str, bytes]`
+    # TODO: change `List[str]` to `List[TEncodable]` where `TEncodable = TEncodable`
     def _encode_and_sum_size(
         self,
-        args_list: Optional[List[Union[str, bytes]]],
+        args_list: Optional[List[TEncodable]],
     ) -> Tuple[List[bytes], int]:
         """
         Encodes the list and calculates the total memory size.
 
         Args:
-            args_list (Optional[List[Union[str, bytes]]]): A list of strings to be converted to bytes.
+            args_list (Optional[List[TEncodable]]): A list of strings to be converted to bytes.
                                                            If None or empty, returns ([], 0).
 
         Returns:
@@ -240,7 +240,7 @@ class BaseClient(CoreCommands):
     async def _execute_command(
         self,
         request_type: RequestType.ValueType,
-        args: List[Union[str, bytes]],
+        args: List[TEncodable],
         route: Optional[Route] = None,
     ) -> TResult:
         if self._is_closed:
@@ -266,7 +266,7 @@ class BaseClient(CoreCommands):
 
     async def _execute_transaction(
         self,
-        commands: List[Tuple[RequestType.ValueType, List[Union[str, bytes]]]],
+        commands: List[Tuple[RequestType.ValueType, List[TEncodable]]],
         route: Optional[Route] = None,
     ) -> List[TResult]:
         if self._is_closed:
@@ -293,9 +293,9 @@ class BaseClient(CoreCommands):
 
     async def _execute_script(
         self,
-        hash: Union[str, bytes],
-        keys: Optional[List[Union[str, bytes]]] = None,
-        args: Optional[List[Union[str, bytes]]] = None,
+        hash: TEncodable,
+        keys: Optional[List[TEncodable]] = None,
+        args: Optional[List[TEncodable]] = None,
         route: Optional[Route] = None,
     ) -> TResult:
         if self._is_closed:

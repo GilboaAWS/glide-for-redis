@@ -4,6 +4,7 @@ from enum import Enum
 from typing import List, Optional, Tuple, Union, cast
 
 from glide.async_commands.command_args import Limit, OrderBy
+from glide.constants import TEncodable
 
 
 class InfBound(Enum):
@@ -278,12 +279,12 @@ class GeoSearchCount:
 
 
 def _create_zrange_args(
-    key: Union[str, bytes],
+    key: TEncodable,
     range_query: Union[RangeByLex, RangeByScore, RangeByIndex],
     reverse: bool,
     with_scores: bool,
-    destination: Optional[Union[str, bytes]] = None,
-) -> List[Union[str, bytes]]:
+    destination: Optional[TEncodable] = None,
+) -> List[TEncodable]:
     args = [destination] if destination else []
     args += [key, str(range_query.start), str(range_query.stop)]
 
@@ -308,35 +309,35 @@ def _create_zrange_args(
 
 
 def separate_keys(
-    keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]
-) -> Tuple[List[Union[str, bytes]], List[Union[str, bytes]]]:
+    keys: Union[List[TEncodable], List[Tuple[TEncodable, float]]]
+) -> Tuple[List[TEncodable], List[TEncodable]]:
     """
     Returns separate lists of keys and weights in case of weighted keys.
     """
     if not keys:
         return [], []
 
-    key_list: List[Union[str, bytes]] = []
-    weight_list: List[Union[str, bytes]] = []
+    key_list: List[TEncodable] = []
+    weight_list: List[TEncodable] = []
 
     if isinstance(keys[0], tuple):
         for item in keys:
             key = item[0]
             weight = item[1]
-            key_list.append(cast(Union[str, bytes], key))
-            weight_list.append(cast(Union[str, bytes], str(weight)))
+            key_list.append(cast(TEncodable, key))
+            weight_list.append(cast(TEncodable, str(weight)))
     else:
-        key_list.extend(cast(List[Union[str, bytes]], keys))
+        key_list.extend(cast(List[TEncodable], keys))
 
     return key_list, weight_list
 
 
 def _create_zinter_zunion_cmd_args(
-    keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
+    keys: Union[List[TEncodable], List[Tuple[TEncodable, float]]],
     aggregation_type: Optional[AggregationType] = None,
-    destination: Optional[Union[str, bytes]] = None,
-) -> List[Union[str, bytes]]:
-    args: List[Union[str, bytes]] = []
+    destination: Optional[TEncodable] = None,
+) -> List[TEncodable]:
+    args: List[TEncodable] = []
 
     if destination:
         args.append(destination)
@@ -359,7 +360,7 @@ def _create_zinter_zunion_cmd_args(
 
 
 def _create_geosearch_args(
-    keys: List[Union[str, bytes]],
+    keys: List[TEncodable],
     search_from: Union[str, bytes, GeospatialData],
     seach_by: Union[GeoSearchByRadius, GeoSearchByBox],
     order_by: Optional[OrderBy] = None,
@@ -368,7 +369,7 @@ def _create_geosearch_args(
     with_dist: bool = False,
     with_hash: bool = False,
     store_dist: bool = False,
-) -> List[Union[str, bytes]]:
+) -> List[TEncodable]:
     args = keys
     if isinstance(search_from, str | bytes):
         args += ["FROMMEMBER", search_from]

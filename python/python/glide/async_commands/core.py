@@ -9,6 +9,7 @@ from typing import (
     List,
     Optional,
     Protocol,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -55,7 +56,7 @@ from glide.async_commands.stream import (
     StreamTrimOptions,
     _create_xpending_range_args,
 )
-from glide.constants import TOK, TResult
+from glide.constants import TOK, TEncodable, TResult
 from glide.protobuf.redis_request_pb2 import RequestType
 from glide.routes import Route
 
@@ -308,14 +309,14 @@ class FlushMode(Enum):
 
 
 def _build_sort_args(
-    key: Union[str, bytes],
-    by_pattern: Optional[Union[str, bytes]] = None,
+    key: TEncodable,
+    by_pattern: Optional[TEncodable] = None,
     limit: Optional[Limit] = None,
-    get_patterns: Optional[List[Union[str, bytes]]] = None,
+    get_patterns: Optional[List[TEncodable]] = None,
     order: Optional[OrderBy] = None,
     alpha: Optional[bool] = None,
-    store: Optional[Union[str, bytes]] = None,
-) -> List[Union[str, bytes]]:
+    store: Optional[TEncodable] = None,
+) -> List[TEncodable]:
     args = [key]
 
     if by_pattern:
@@ -344,28 +345,28 @@ class CoreCommands(Protocol):
     async def _execute_command(
         self,
         request_type: RequestType.ValueType,
-        args: List[Union[str, bytes]],
+        args: List[TEncodable],
         route: Optional[Route] = ...,
     ) -> TResult: ...
 
     async def _execute_transaction(
         self,
-        commands: List[Tuple[RequestType.ValueType, List[Union[str, bytes]]]],
+        commands: List[Tuple[RequestType.ValueType, List[TEncodable]]],
         route: Optional[Route] = None,
     ) -> List[TResult]: ...
 
     async def _execute_script(
         self,
-        hash: Union[str, bytes],
-        keys: Optional[List[Union[str, bytes]]] = None,
-        args: Optional[List[Union[str, bytes]]] = None,
+        hash: TEncodable,
+        keys: Optional[List[TEncodable]] = None,
+        args: Optional[List[TEncodable]] = None,
         route: Optional[Route] = None,
     ) -> TResult: ...
 
     async def set(
         self,
-        key: Union[str, bytes],
-        value: Union[str, bytes],
+        key: TEncodable,
+        value: TEncodable,
         conditional_set: Optional[ConditionalChange] = None,
         expiry: Optional[ExpirySet] = None,
         return_old_value: bool = False,
@@ -375,8 +376,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/set/ for more details.
 
         Args:
-            key (Union[str, bytes]): the key to store.
-            value (Union[str, bytes]): the value to store with the given key.
+            key (TEncodable): the key to store.
+            value (TEncodable): the value to store with the given key.
             conditional_set (Optional[ConditionalChange], optional): set the key only if the given condition is met.
                 Equivalent to [`XX` | `NX`] in the Redis API. Defaults to None.
             expiry (Optional[ExpirySet], optional): set expiration to the given key.
@@ -410,13 +411,13 @@ class CoreCommands(Protocol):
             args.extend(expiry.get_cmd_args())
         return cast(Optional[bytes], await self._execute_command(RequestType.Set, args))
 
-    async def get(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def get(self, key: TEncodable) -> Optional[bytes]:
         """
         Get the value associated with the given key, or null if no such value exists.
         See https://redis.io/commands/get/ for details.
 
         Args:
-            key (Union[str, bytes]): The key to retrieve from the database.
+            key (TEncodable): The key to retrieve from the database.
 
         Returns:
             Optional[bytes]: If the key exists, returns the value of the key as a string. Otherwise, return None.
@@ -429,14 +430,14 @@ class CoreCommands(Protocol):
             Optional[bytes], await self._execute_command(RequestType.Get, [key])
         )
 
-    async def getdel(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def getdel(self, key: TEncodable) -> Optional[bytes]:
         """
         Gets a string value associated with the given `key` and deletes the key.
 
         See https://valkey.io/commands/getdel for more details.
 
         Args:
-            key (Union[str, bytes]): The `key` to retrieve from the database.
+            key (TEncodable): The `key` to retrieve from the database.
 
         Returns:
             Optional[bytes]: If `key` exists, returns the `value` of `key`. Otherwise, returns `None`.
@@ -452,7 +453,7 @@ class CoreCommands(Protocol):
             Optional[bytes], await self._execute_command(RequestType.GetDel, [key])
         )
 
-    async def getrange(self, key: Union[str, bytes], start: int, end: int) -> bytes:
+    async def getrange(self, key: TEncodable, start: int, end: int) -> bytes:
         """
         Returns the substring of the string value stored at `key`, determined by the offsets `start` and `end` (both are inclusive).
         Negative offsets can be used in order to provide an offset starting from the end of the string.
@@ -464,7 +465,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/getrange/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             start (int): The starting offset.
             end (int): The ending offset.
 
@@ -489,7 +490,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def append(self, key: Union[str, bytes], value: Union[str, bytes]) -> int:
+    async def append(self, key: TEncodable, value: TEncodable) -> int:
         """
         Appends a value to a key.
         If `key` does not exist it is created and set as an empty string, so `APPEND` will be similar to `SET` in this special case.
@@ -497,8 +498,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/append for more details.
 
         Args:
-            key (Union[str, bytes]): The key to which the value will be appended.
-            value (Union[str, bytes]): The value to append.
+            key (TEncodable): The key to which the value will be appended.
+            value (TEncodable): The value to append.
 
         Returns:
             int: The length of the string after appending the value.
@@ -513,7 +514,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.Append, [key, value]))
 
-    async def strlen(self, key: Union[str, bytes]) -> int:
+    async def strlen(self, key: TEncodable) -> int:
         """
         Get the length of the string stored at a key.
         See https://redis.io/commands/strlen/ for details.
@@ -532,7 +533,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.Strlen, [key]))
 
-    async def rename(self, key: Union[str, bytes], new_key: Union[str, bytes]) -> TOK:
+    async def rename(self, key: TEncodable, new_key: TEncodable) -> TOK:
         """
         Renames `key` to `new_key`.
         If `newkey` already exists it is overwritten.
@@ -542,8 +543,8 @@ class CoreCommands(Protocol):
             When in cluster mode, both `key` and `newkey` must map to the same hash slot.
 
         Args:
-            key (Union[str, bytes]) : The key to rename.
-            new_key (Union[str, bytes]) : The new name of the key.
+            key (TEncodable) : The key to rename.
+            new_key (TEncodable) : The new name of the key.
 
         Returns:
             OK: If the `key` was successfully renamed, return "OK". If `key` does not exist, an error is thrown.
@@ -553,7 +554,7 @@ class CoreCommands(Protocol):
         )
 
     async def renamenx(
-        self, key: Union[str, bytes], new_key: Union[str, bytes]
+        self, key: TEncodable, new_key: TEncodable
     ) -> bool:
         """
         Renames `key` to `new_key` if `new_key` does not yet exist.
@@ -564,8 +565,8 @@ class CoreCommands(Protocol):
             When in cluster mode, both `key` and `new_key` must map to the same hash slot.
 
         Args:
-            key (Union[str, bytes]): The key to rename.
-            new_key (Union[str, bytes]): The new key name.
+            key (TEncodable): The key to rename.
+            new_key (TEncodable): The new key name.
 
         Returns:
             bool: True if `key` was renamed to `new_key`, or False if `new_key` already exists.
@@ -579,7 +580,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.RenameNX, [key, new_key]),
         )
 
-    async def delete(self, keys: List[Union[str, bytes]]) -> int:
+    async def delete(self, keys: List[TEncodable]) -> int:
         """
         Delete one or more keys from the database. A key is ignored if it does not exist.
         See https://redis.io/commands/del/ for details.
@@ -588,7 +589,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[Union[str, bytes]]): A list of keys to be deleted from the database.
+            keys (List[TEncodable]): A list of keys to be deleted from the database.
 
         Returns:
             int: The number of keys that were deleted.
@@ -602,14 +603,14 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.Del, keys))
 
-    async def incr(self, key: Union[str, bytes]) -> int:
+    async def incr(self, key: TEncodable) -> int:
         """
         Increments the number stored at `key` by one. If the key does not exist, it is set to 0 before performing the
         operation.
         See https://redis.io/commands/incr/ for more details.
 
         Args:
-          key (Union[str, bytes]): The key to increment its value.
+          key (TEncodable): The key to increment its value.
 
         Returns:
             int: The value of `key` after the increment.
@@ -621,13 +622,13 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.Incr, [key]))
 
-    async def incrby(self, key: Union[str, bytes], amount: int) -> int:
+    async def incrby(self, key: TEncodable, amount: int) -> int:
         """
         Increments the number stored at `key` by `amount`. If the key does not exist, it is set to 0 before performing
         the operation. See https://redis.io/commands/incrby/ for more details.
 
         Args:
-          key (Union[str, bytes]): The key to increment its value.
+          key (TEncodable): The key to increment its value.
           amount (int) : The amount to increment.
 
         Returns:
@@ -642,7 +643,7 @@ class CoreCommands(Protocol):
             int, await self._execute_command(RequestType.IncrBy, [key, str(amount)])
         )
 
-    async def incrbyfloat(self, key: Union[str, bytes], amount: float) -> float:
+    async def incrbyfloat(self, key: TEncodable, amount: float) -> float:
         """
         Increment the string representing a floating point number stored at `key` by `amount`.
         By using a negative increment value, the value stored at the `key` is decremented.
@@ -650,7 +651,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/incrbyfloat/ for more details.
 
         Args:
-          key (Union[str, bytes]): The key to increment its value.
+          key (TEncodable): The key to increment its value.
           amount (float) : The amount to increment.
 
         Returns:
@@ -667,7 +668,7 @@ class CoreCommands(Protocol):
         )
 
     async def setrange(
-        self, key: Union[str, bytes], offset: int, value: Union[str, bytes]
+        self, key: TEncodable, offset: int, value: TEncodable
     ) -> int:
         """
         Overwrites part of the string stored at `key`, starting at the specified
@@ -679,9 +680,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/setrange for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string to update.
+            key (TEncodable): The key of the string to update.
             offset (int): The position in the string where `value` should be written.
-            value (Union[str, bytes]): The string written with `offset`.
+            value (TEncodable): The string written with `offset`.
 
         Returns:
             int: The length of the string stored at `key` after it was modified.
@@ -699,7 +700,7 @@ class CoreCommands(Protocol):
         )
 
     async def mset(
-        self, key_value_map: Mapping[Union[str, bytes], Union[str, bytes]]
+        self, key_value_map: Mapping[TEncodable, TEncodable]
     ) -> TOK:
         """
         Set multiple keys to multiple values in a single atomic operation.
@@ -709,7 +710,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when keys in `key_value_map` map to different hash slots.
 
         Args:
-            key_value_map (Mapping[Union[str, bytes], Union[str, bytes]]): A map of key value pairs.
+            key_value_map (Mapping[TEncodable, TEncodable]): A map of key value pairs.
 
         Returns:
             OK: a simple OK response.
@@ -718,13 +719,13 @@ class CoreCommands(Protocol):
             >>> await client.mset({b"key": b"value", b"key2": b"value2"})
                 'OK'
         """
-        parameters: List[Union[str, bytes]] = []
+        parameters: List[TEncodable] = []
         for pair in key_value_map.items():
             parameters.extend(pair)
         return cast(TOK, await self._execute_command(RequestType.MSet, parameters))
 
     async def msetnx(
-        self, key_value_map: Mapping[Union[str, bytes], Union[str, bytes]]
+        self, key_value_map: Mapping[TEncodable, TEncodable]
     ) -> bool:
         """
         Sets multiple keys to values if the key does not exist. The operation is atomic, and if one or
@@ -736,7 +737,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/msetnx/ for more details.
 
         Args:
-            key_value_map (Mapping[Union[str, bytes], Union[str, bytes]]): A key-value map consisting of keys and their respective values to set.
+            key_value_map (Mapping[TEncodable, TEncodable]): A key-value map consisting of keys and their respective values to set.
 
         Returns:
             bool: True if all keys were set. False if no key was set.
@@ -747,7 +748,7 @@ class CoreCommands(Protocol):
             >>> await client.msetnx({b"key2": b"value4", b"key3": b"value5"})
                 False
         """
-        parameters: List[Union[str, bytes]] = []
+        parameters: List[TEncodable] = []
         for pair in key_value_map.items():
             parameters.extend(pair)
         return cast(
@@ -755,7 +756,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.MSetNX, parameters),
         )
 
-    async def mget(self, keys: List[Union[str, bytes]]) -> List[Optional[bytes]]:
+    async def mget(self, keys: List[TEncodable]) -> List[Optional[bytes]]:
         """
         Retrieve the values of multiple keys.
         See https://redis.io/commands/mget/ for more details.
@@ -764,7 +765,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[Union[str, bytes]]): A list of keys to retrieve values for.
+            keys (List[TEncodable]): A list of keys to retrieve values for.
 
         Returns:
             List[Optional[bytes]]: A list of values corresponding to the provided keys. If a key is not found,
@@ -780,14 +781,14 @@ class CoreCommands(Protocol):
             List[Optional[bytes]], await self._execute_command(RequestType.MGet, keys)
         )
 
-    async def decr(self, key: Union[str, bytes]) -> int:
+    async def decr(self, key: TEncodable) -> int:
         """
         Decrement the number stored at `key` by one. If the key does not exist, it is set to 0 before performing the
         operation.
         See https://redis.io/commands/decr/ for more details.
 
         Args:
-          key (Union[str, bytes]): The key to increment its value.
+          key (TEncodable): The key to increment its value.
 
         Returns:
             int: The value of key after the decrement.
@@ -799,14 +800,14 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.Decr, [key]))
 
-    async def decrby(self, key: Union[str, bytes], amount: int) -> int:
+    async def decrby(self, key: TEncodable, amount: int) -> int:
         """
         Decrements the number stored at `key` by `amount`. If the key does not exist, it is set to 0 before performing
         the operation.
         See https://redis.io/commands/decrby/ for more details.
 
         Args:
-          key (Union[str, bytes]): The key to decrement its value.
+          key (TEncodable): The key to decrement its value.
           amount (int) : The amount to decrement.
 
         Returns:
@@ -821,7 +822,7 @@ class CoreCommands(Protocol):
             int, await self._execute_command(RequestType.DecrBy, [key, str(amount)])
         )
 
-    async def touch(self, keys: List[Union[str, bytes]]) -> int:
+    async def touch(self, keys: List[TEncodable]) -> int:
         """
         Updates the last access time of specified keys.
 
@@ -831,7 +832,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys to update last access time.
+            keys (List[TEncodable]): The keys to update last access time.
 
         Returns:
             int: The number of keys that were updated, a key is ignored if it doesn't exist.
@@ -846,16 +847,16 @@ class CoreCommands(Protocol):
 
     async def hset(
         self,
-        key: Union[str, bytes],
-        field_value_map: Mapping[Union[str, bytes], Union[str, bytes]],
+        key: TEncodable,
+        field_value_map: Mapping[TEncodable, TEncodable],
     ) -> int:
         """
         Sets the specified fields to their respective values in the hash stored at `key`.
         See https://redis.io/commands/hset/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field_value_map (Mapping[Union[str, bytes], Union[str, bytes]]): A field-value map consisting of fields and their corresponding values
+            key (TEncodable): The key of the hash.
+            field_value_map (Mapping[TEncodable, TEncodable]): A field-value map consisting of fields and their corresponding values
             to be set in the hash stored at the specified key.
 
         Returns:
@@ -865,7 +866,7 @@ class CoreCommands(Protocol):
             >>> await client.hset(b"my_hash", {b"field": b"value", b"field2": b"value2"})
                 2 # Indicates that 2 fields were successfully set in the hash "my_hash".
         """
-        field_value_list: List[Union[str, bytes]] = [key]
+        field_value_list: List[TEncodable] = [key]
         for pair in field_value_map.items():
             field_value_list.extend(pair)
         return cast(
@@ -874,15 +875,15 @@ class CoreCommands(Protocol):
         )
 
     async def hget(
-        self, key: Union[str, bytes], field: Union[str, bytes]
+        self, key: TEncodable, field: TEncodable
     ) -> Optional[bytes]:
         """
         Retrieves the value associated with `field` in the hash stored at `key`.
         See https://redis.io/commands/hget/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field (Union[str, bytes]): The field whose value should be retrieved.
+            key (TEncodable): The key of the hash.
+            field (TEncodable): The field whose value should be retrieved.
 
         Returns:
             Optional[bytes]: The value associated `field` in the hash.
@@ -902,9 +903,9 @@ class CoreCommands(Protocol):
 
     async def hsetnx(
         self,
-        key: Union[str, bytes],
-        field: Union[str, bytes],
-        value: Union[str, bytes],
+        key: TEncodable,
+        field: TEncodable,
+        value: TEncodable,
     ) -> bool:
         """
         Sets `field` in the hash stored at `key` to `value`, only if `field` does not yet exist.
@@ -913,9 +914,9 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/hsetnx/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field (Union[str, bytes]): The field to set the value for.
-            value (Union[str, bytes]): The value to set.
+            key (TEncodable): The key of the hash.
+            field (TEncodable): The field to set the value for.
+            value (TEncodable): The value to set.
 
         Returns:
             bool: True if the field was set, False if the field already existed and was not set.
@@ -932,7 +933,7 @@ class CoreCommands(Protocol):
         )
 
     async def hincrby(
-        self, key: Union[str, bytes], field: Union[str, bytes], amount: int
+        self, key: TEncodable, field: TEncodable, amount: int
     ) -> int:
         """
         Increment or decrement the value of a `field` in the hash stored at `key` by the specified amount.
@@ -941,8 +942,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/hincrby/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field (Union[str, bytes]): The field in the hash stored at `key` to increment or decrement its value.
+            key (TEncodable): The key of the hash.
+            field (TEncodable): The field in the hash stored at `key` to increment or decrement its value.
             amount (int): The amount by which to increment or decrement the field's value.
                 Use a negative value to decrement.
 
@@ -959,7 +960,7 @@ class CoreCommands(Protocol):
         )
 
     async def hincrbyfloat(
-        self, key: Union[str, bytes], field: Union[str, bytes], amount: float
+        self, key: TEncodable, field: TEncodable, amount: float
     ) -> float:
         """
         Increment or decrement the floating-point value stored at `field` in the hash stored at `key` by the specified
@@ -969,8 +970,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/hincrbyfloat/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field (Union[str, bytes]): The field in the hash stored at `key` to increment or decrement its value.
+            key (TEncodable): The key of the hash.
+            field (TEncodable): The field in the hash stored at `key` to increment or decrement its value.
             amount (float): The amount by which to increment or decrement the field's value.
                 Use a negative value to decrement.
 
@@ -988,14 +989,14 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def hexists(self, key: Union[str, bytes], field: Union[str, bytes]) -> bool:
+    async def hexists(self, key: TEncodable, field: TEncodable) -> bool:
         """
         Check if a field exists in the hash stored at `key`.
         See https://redis.io/commands/hexists/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field (Union[str, bytes]): The field to check in the hash stored at `key`.
+            key (TEncodable): The key of the hash.
+            field (TEncodable): The field to check in the hash stored at `key`.
 
         Returns:
             bool: Returns 'True' if the hash contains the specified field. If the hash does not contain the field,
@@ -1011,13 +1012,13 @@ class CoreCommands(Protocol):
             bool, await self._execute_command(RequestType.HExists, [key, field])
         )
 
-    async def hgetall(self, key: Union[str, bytes]) -> Dict[bytes, bytes]:
+    async def hgetall(self, key: TEncodable) -> Dict[bytes, bytes]:
         """
         Returns all fields and values of the hash stored at `key`.
         See https://redis.io/commands/hgetall/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
 
         Returns:
             Dict[bytes, bytes]: A dictionary of fields and their values stored in the hash. Every field name in the list is followed by
@@ -1033,15 +1034,15 @@ class CoreCommands(Protocol):
         )
 
     async def hmget(
-        self, key: Union[str, bytes], fields: List[Union[str, bytes]]
+        self, key: TEncodable, fields: List[TEncodable]
     ) -> List[Optional[bytes]]:
         """
         Retrieve the values associated with specified fields in the hash stored at `key`.
         See https://redis.io/commands/hmget/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            fields (List[Union[str, bytes]]): The list of fields in the hash stored at `key` to retrieve from the database.
+            key (TEncodable): The key of the hash.
+            fields (List[TEncodable]): The list of fields in the hash stored at `key` to retrieve from the database.
 
         Returns:
             List[Optional[bytes]]: A list of values associated with the given fields, in the same order as they are requested.
@@ -1058,15 +1059,15 @@ class CoreCommands(Protocol):
         )
 
     async def hdel(
-        self, key: Union[str, bytes], fields: List[Union[str, bytes]]
+        self, key: TEncodable, fields: List[TEncodable]
     ) -> int:
         """
         Remove specified fields from the hash stored at `key`.
         See https://redis.io/commands/hdel/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            fields (List[Union[str, bytes]]): The list of fields to remove from the hash stored at `key`.
+            key (TEncodable): The key of the hash.
+            fields (List[TEncodable]): The list of fields to remove from the hash stored at `key`.
 
         Returns:
             int: The number of fields that were removed from the hash, excluding specified but non-existing fields.
@@ -1078,14 +1079,14 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.HDel, [key] + fields))
 
-    async def hlen(self, key: Union[str, bytes]) -> int:
+    async def hlen(self, key: TEncodable) -> int:
         """
         Returns the number of fields contained in the hash stored at `key`.
 
         See https://redis.io/commands/hlen/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
 
         Returns:
             int: The number of fields in the hash, or 0 when the key does not exist.
@@ -1099,14 +1100,14 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.HLen, [key]))
 
-    async def hvals(self, key: Union[str, bytes]) -> List[bytes]:
+    async def hvals(self, key: TEncodable) -> List[bytes]:
         """
         Returns all values in the hash stored at `key`.
 
         See https://redis.io/commands/hvals/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
 
         Returns:
             List[bytes]: A list of values in the hash, or an empty list when the key does not exist.
@@ -1117,14 +1118,14 @@ class CoreCommands(Protocol):
         """
         return cast(List[bytes], await self._execute_command(RequestType.HVals, [key]))
 
-    async def hkeys(self, key: Union[str, bytes]) -> List[bytes]:
+    async def hkeys(self, key: TEncodable) -> List[bytes]:
         """
         Returns all field names in the hash stored at `key`.
 
         See https://redis.io/commands/hkeys/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
 
         Returns:
             List[bytes]: A list of field names for the hash, or an empty list when the key does not exist.
@@ -1135,14 +1136,14 @@ class CoreCommands(Protocol):
         """
         return cast(List[bytes], await self._execute_command(RequestType.HKeys, [key]))
 
-    async def hrandfield(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def hrandfield(self, key: TEncodable) -> Optional[bytes]:
         """
         Returns a random field name from the hash value stored at `key`.
 
         See https://valkey.io/commands/hrandfield for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
 
         Returns:
             Optional[bytes]: A random field name from the hash stored at `key`.
@@ -1156,14 +1157,14 @@ class CoreCommands(Protocol):
             Optional[bytes], await self._execute_command(RequestType.HRandField, [key])
         )
 
-    async def hrandfield_count(self, key: Union[str, bytes], count: int) -> List[bytes]:
+    async def hrandfield_count(self, key: TEncodable, count: int) -> List[bytes]:
         """
         Retrieves up to `count` random field names from the hash value stored at `key`.
 
         See https://valkey.io/commands/hrandfield for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
             count (int): The number of field names to return.
                 If `count` is positive, returns unique elements.
                 If `count` is negative, allows for duplicates elements.
@@ -1184,7 +1185,7 @@ class CoreCommands(Protocol):
         )
 
     async def hrandfield_withvalues(
-        self, key: Union[str, bytes], count: int
+        self, key: TEncodable, count: int
     ) -> List[List[bytes]]:
         """
         Retrieves up to `count` random field names along with their values from the hash value stored at `key`.
@@ -1192,7 +1193,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/hrandfield for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
+            key (TEncodable): The key of the hash.
             count (int): The number of field names to return.
                 If `count` is positive, returns unique elements.
                 If `count` is negative, allows for duplicates elements.
@@ -1213,15 +1214,15 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def hstrlen(self, key: Union[str, bytes], field: Union[str, bytes]) -> int:
+    async def hstrlen(self, key: TEncodable, field: TEncodable) -> int:
         """
         Returns the string length of the value associated with `field` in the hash stored at `key`.
 
         See https://valkey.io/commands/hstrlen/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the hash.
-            field (Union[str, bytes]): The field in the hash.
+            key (TEncodable): The key of the hash.
+            field (TEncodable): The field in the hash.
 
         Returns:
             int: The string length or 0 if `field` or `key` does not exist.
@@ -1237,7 +1238,7 @@ class CoreCommands(Protocol):
         )
 
     async def lpush(
-        self, key: Union[str, bytes], elements: List[Union[str, bytes]]
+        self, key: TEncodable, elements: List[TEncodable]
     ) -> int:
         """
         Insert all the specified values at the head of the list stored at `key`.
@@ -1246,8 +1247,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/lpush/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
-            elements (List[Union[str, bytes]]): The elements to insert at the head of the list stored at `key`.
+            key (TEncodable): The key of the list.
+            elements (List[TEncodable]): The elements to insert at the head of the list stored at `key`.
 
         Returns:
             int: The length of the list after the push operations.
@@ -1263,7 +1264,7 @@ class CoreCommands(Protocol):
         )
 
     async def lpushx(
-        self, key: Union[str, bytes], elements: List[Union[str, bytes]]
+        self, key: TEncodable, elements: List[TEncodable]
     ) -> int:
         """
         Inserts all the specified values at the head of the list stored at `key`, only if `key` exists and holds a list.
@@ -1272,8 +1273,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/lpushx/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
-            elements (List[Union[str, bytes]]): The elements to insert at the head of the list stored at `key`.
+            key (TEncodable): The key of the list.
+            elements (List[TEncodable]): The elements to insert at the head of the list stored at `key`.
 
         Returns:
             int: The length of the list after the push operation.
@@ -1288,14 +1289,14 @@ class CoreCommands(Protocol):
             int, await self._execute_command(RequestType.LPushX, [key] + elements)
         )
 
-    async def lpop(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def lpop(self, key: TEncodable) -> Optional[bytes]:
         """
         Remove and return the first elements of the list stored at `key`.
         The command pops a single element from the beginning of the list.
         See https://redis.io/commands/lpop/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
 
         Returns:
             Optional[bytes]: The value of the first element.
@@ -1313,14 +1314,14 @@ class CoreCommands(Protocol):
         )
 
     async def lpop_count(
-        self, key: Union[str, bytes], count: int
+        self, key: TEncodable, count: int
     ) -> Optional[List[bytes]]:
         """
         Remove and return up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/lpop/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             count (int): The count of elements to pop from the list.
 
         Returns:
@@ -1339,7 +1340,7 @@ class CoreCommands(Protocol):
         )
 
     async def blpop(
-        self, keys: List[Union[str, bytes]], timeout: float
+        self, keys: List[TEncodable], timeout: float
     ) -> Optional[List[bytes]]:
         """
         Pops an element from the head of the first list that is non-empty, with the given keys being checked in the
@@ -1351,7 +1352,7 @@ class CoreCommands(Protocol):
             2. `BLPOP` is a client blocking command, see https://github.com/aws/glide-for-redis/wiki/General-Concepts#blocking-commands for more details and best practices.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the lists to pop from.
+            keys (List[TEncodable]): The keys of the lists to pop from.
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of 0 will block indefinitely.
 
         Returns:
@@ -1369,7 +1370,7 @@ class CoreCommands(Protocol):
 
     async def lmpop(
         self,
-        keys: List[Union[str, bytes]],
+        keys: List[TEncodable],
         direction: ListDirection,
         count: Optional[int] = None,
     ) -> Optional[Mapping[bytes, List[bytes]]]:
@@ -1381,7 +1382,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lmpop/ for details.
 
         Args:
-            keys (List[Union[str, bytes]]): An array of keys of lists.
+            keys (List[TEncodable]): An array of keys of lists.
             direction (ListDirection): The direction based on which elements are popped from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             count (Optional[int]): The maximum number of popped elements. If not provided, defaults to popping a single element.
 
@@ -1406,7 +1407,7 @@ class CoreCommands(Protocol):
 
     async def blmpop(
         self,
-        keys: List[Union[str, bytes]],
+        keys: List[TEncodable],
         direction: ListDirection,
         timeout: float,
         count: Optional[int] = None,
@@ -1423,7 +1424,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/blmpop/ for details.
 
         Args:
-            keys (List[Union[str, bytes]]): An array of keys of lists.
+            keys (List[TEncodable]): An array of keys of lists.
             direction (ListDirection): The direction based on which elements are popped from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of `0` will block indefinitely.
             count (Optional[int]): The maximum number of popped elements. If not provided, defaults to popping a single element.
@@ -1447,7 +1448,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.BLMPop, args),
         )
 
-    async def lrange(self, key: Union[str, bytes], start: int, end: int) -> List[bytes]:
+    async def lrange(self, key: TEncodable, start: int, end: int) -> List[bytes]:
         """
         Retrieve the specified elements of the list stored at `key` within the given range.
         The offsets `start` and `end` are zero-based indexes, with 0 being the first element of the list, 1 being the next
@@ -1456,7 +1457,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/lrange/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             start (int): The starting point of the range.
             end (int): The end of the range.
 
@@ -1483,7 +1484,7 @@ class CoreCommands(Protocol):
 
     async def lindex(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         index: int,
     ) -> Optional[bytes]:
         """
@@ -1496,7 +1497,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/lindex/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             index (int): The index of the element in the list to retrieve.
 
         Returns:
@@ -1515,7 +1516,7 @@ class CoreCommands(Protocol):
         )
 
     async def lset(
-        self, key: Union[str, bytes], index: int, element: Union[str, bytes]
+        self, key: TEncodable, index: int, element: TEncodable
     ) -> TOK:
         """
         Sets the list element at `index` to `element`.
@@ -1527,9 +1528,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lset/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             index (int): The index of the element in the list to be set.
-            element (Union[str, bytes]): The new element to set at the specified index.
+            element (TEncodable): The new element to set at the specified index.
 
         Returns:
             TOK: A simple `OK` response.
@@ -1544,7 +1545,7 @@ class CoreCommands(Protocol):
         )
 
     async def rpush(
-        self, key: Union[str, bytes], elements: List[Union[str, bytes]]
+        self, key: TEncodable, elements: List[TEncodable]
     ) -> int:
         """
         Inserts all the specified values at the tail of the list stored at `key`.
@@ -1553,8 +1554,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/rpush/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
-            elements (List[Union[str, bytes]]): The elements to insert at the tail of the list stored at `key`.
+            key (TEncodable): The key of the list.
+            elements (List[TEncodable]): The elements to insert at the tail of the list stored at `key`.
 
         Returns:
             int: The length of the list after the push operations.
@@ -1570,7 +1571,7 @@ class CoreCommands(Protocol):
         )
 
     async def rpushx(
-        self, key: Union[str, bytes], elements: List[Union[str, bytes]]
+        self, key: TEncodable, elements: List[TEncodable]
     ) -> int:
         """
         Inserts all the specified values at the tail of the list stored at `key`, only if `key` exists and holds a list.
@@ -1579,8 +1580,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/rpushx/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
-            elements (List[Union[str, bytes]]): The elements to insert at the tail of the list stored at `key`.
+            key (TEncodable): The key of the list.
+            elements (List[TEncodable]): The elements to insert at the tail of the list stored at `key`.
 
         Returns:
             int: The length of the list after the push operation.
@@ -1595,14 +1596,14 @@ class CoreCommands(Protocol):
             int, await self._execute_command(RequestType.RPushX, [key] + elements)
         )
 
-    async def rpop(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def rpop(self, key: TEncodable) -> Optional[bytes]:
         """
         Removes and returns the last elements of the list stored at `key`.
         The command pops a single element from the end of the list.
         See https://redis.io/commands/rpop/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
 
         Returns:
             Optional[bytes]: The value of the last element.
@@ -1620,14 +1621,14 @@ class CoreCommands(Protocol):
         )
 
     async def rpop_count(
-        self, key: Union[str, bytes], count: int
+        self, key: TEncodable, count: int
     ) -> Optional[List[bytes]]:
         """
         Removes and returns up to `count` elements from the list stored at `key`, depending on the list's length.
         See https://redis.io/commands/rpop/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             count (int): The count of elements to pop from the list.
 
         Returns:
@@ -1646,7 +1647,7 @@ class CoreCommands(Protocol):
         )
 
     async def brpop(
-        self, keys: List[Union[str, bytes]], timeout: float
+        self, keys: List[TEncodable], timeout: float
     ) -> Optional[List[bytes]]:
         """
         Pops an element from the tail of the first list that is non-empty, with the given keys being checked in the
@@ -1658,7 +1659,7 @@ class CoreCommands(Protocol):
             2. `BRPOP` is a client blocking command, see https://github.com/aws/glide-for-redis/wiki/General-Concepts#blocking-commands for more details and best practices.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the lists to pop from.
+            keys (List[TEncodable]): The keys of the lists to pop from.
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of 0 will block indefinitely.
 
         Returns:
@@ -1676,10 +1677,10 @@ class CoreCommands(Protocol):
 
     async def linsert(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         position: InsertPosition,
-        pivot: Union[str, bytes],
-        element: Union[str, bytes],
+        pivot: TEncodable,
+        element: TEncodable,
     ) -> int:
         """
         Inserts `element` in the list at `key` either before or after the `pivot`.
@@ -1687,11 +1688,11 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/linsert/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             position (InsertPosition): The relative position to insert into - either `InsertPosition.BEFORE` or
                 `InsertPosition.AFTER` the `pivot`.
-            pivot (Union[str, bytes]): An element of the list.
-            element (Union[str, bytes]): The new element to insert.
+            pivot (TEncodable): An element of the list.
+            element (TEncodable): The new element to insert.
 
         Returns:
             int: The list length after a successful insert operation.
@@ -1711,8 +1712,8 @@ class CoreCommands(Protocol):
 
     async def lmove(
         self,
-        source: Union[str, bytes],
-        destination: Union[str, bytes],
+        source: TEncodable,
+        destination: TEncodable,
         where_from: ListDirection,
         where_to: ListDirection,
     ) -> Optional[bytes]:
@@ -1726,8 +1727,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lmove/ for details.
 
         Args:
-            source (Union[str, bytes]): The key to the source list.
-            destination (Union[str, bytes]): The key to the destination list.
+            source (TEncodable): The key to the source list.
+            destination (TEncodable): The key to the destination list.
             where_from (ListDirection): The direction to remove the element from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             where_to (ListDirection): The direction to add the element to (`ListDirection.LEFT` or `ListDirection.RIGHT`).
 
@@ -1756,8 +1757,8 @@ class CoreCommands(Protocol):
 
     async def blmove(
         self,
-        source: Union[str, bytes],
-        destination: Union[str, bytes],
+        source: TEncodable,
+        destination: TEncodable,
         where_from: ListDirection,
         where_to: ListDirection,
         timeout: float,
@@ -1775,8 +1776,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/blmove/ for details.
 
         Args:
-            source (Union[str, bytes]): The key to the source list.
-            destination (Union[str, bytes]): The key to the destination list.
+            source (TEncodable): The key to the source list.
+            destination (TEncodable): The key to the destination list.
             where_from (ListDirection): The direction to remove the element from (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             where_to (ListDirection): The direction to add the element to (`ListDirection.LEFT` or `ListDirection.RIGHT`).
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of `0` will block indefinitely.
@@ -1805,7 +1806,7 @@ class CoreCommands(Protocol):
         )
 
     async def sadd(
-        self, key: Union[str, bytes], members: List[Union[str, bytes]]
+        self, key: TEncodable, members: List[TEncodable]
     ) -> int:
         """
         Add specified members to the set stored at `key`.
@@ -1814,8 +1815,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/sadd/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key where members will be added to its set.
-            members (List[Union[str, bytes]]): A list of members to add to the set stored at `key`.
+            key (TEncodable): The key where members will be added to its set.
+            members (List[TEncodable]): A list of members to add to the set stored at `key`.
 
         Returns:
             int: The number of members that were added to the set, excluding members already present.
@@ -1827,7 +1828,7 @@ class CoreCommands(Protocol):
         return cast(int, await self._execute_command(RequestType.SAdd, [key] + members))
 
     async def srem(
-        self, key: Union[str, bytes], members: List[Union[str, bytes]]
+        self, key: TEncodable, members: List[TEncodable]
     ) -> int:
         """
         Remove specified members from the set stored at `key`.
@@ -1835,8 +1836,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/srem/ for details.
 
         Args:
-            key (Union[str, bytes]): The key from which members will be removed.
-            members (List[Union[str, bytes]]): A list of members to remove from the set stored at `key`.
+            key (TEncodable): The key from which members will be removed.
+            members (List[TEncodable]): A list of members to remove from the set stored at `key`.
 
         Returns:
             int: The number of members that were removed from the set, excluding non-existing members.
@@ -1848,13 +1849,13 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.SRem, [key] + members))
 
-    async def smembers(self, key: Union[str, bytes]) -> Set[bytes]:
+    async def smembers(self, key: TEncodable) -> Set[bytes]:
         """
         Retrieve all the members of the set value stored at `key`.
         See https://redis.io/commands/smembers/ for details.
 
         Args:
-            key (Union[str, bytes]): The key from which to retrieve the set members.
+            key (TEncodable): The key from which to retrieve the set members.
 
         Returns:
             Set[bytes]: A set of all members of the set.
@@ -1868,13 +1869,13 @@ class CoreCommands(Protocol):
             Set[bytes], await self._execute_command(RequestType.SMembers, [key])
         )
 
-    async def scard(self, key: Union[str, bytes]) -> int:
+    async def scard(self, key: TEncodable) -> int:
         """
         Retrieve the set cardinality (number of elements) of the set stored at `key`.
         See https://redis.io/commands/scard/ for details.
 
         Args:
-            key (Union[str, bytes]): The key from which to retrieve the number of set members.
+            key (TEncodable): The key from which to retrieve the number of set members.
 
         Returns:
             int: The cardinality (number of elements) of the set, or 0 if the key does not exist.
@@ -1885,7 +1886,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.SCard, [key]))
 
-    async def spop(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def spop(self, key: TEncodable) -> Optional[bytes]:
         """
         Removes and returns one random member from the set stored at `key`.
 
@@ -1893,7 +1894,7 @@ class CoreCommands(Protocol):
         To pop multiple members, see `spop_count`.
 
         Args:
-            key (Union[str, bytes]): The key of the set.
+            key (TEncodable): The key of the set.
 
         Returns:
             Optional[bytes]: The value of the popped member.
@@ -1909,7 +1910,7 @@ class CoreCommands(Protocol):
             Optional[bytes], await self._execute_command(RequestType.SPop, [key])
         )
 
-    async def spop_count(self, key: Union[str, bytes], count: int) -> Set[bytes]:
+    async def spop_count(self, key: TEncodable, count: int) -> Set[bytes]:
         """
         Removes and returns up to `count` random members from the set stored at `key`, depending on the set's length.
 
@@ -1917,7 +1918,7 @@ class CoreCommands(Protocol):
         To pop a single member, see `spop`.
 
         Args:
-            key (Union[str, bytes]): The key of the set.
+            key (TEncodable): The key of the set.
             count (int): The count of the elements to pop from the set.
 
         Returns:
@@ -1936,8 +1937,8 @@ class CoreCommands(Protocol):
 
     async def sismember(
         self,
-        key: Union[str, bytes],
-        member: Union[str, bytes],
+        key: TEncodable,
+        member: TEncodable,
     ) -> bool:
         """
         Returns if `member` is a member of the set stored at `key`.
@@ -1945,8 +1946,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/sismember/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the set.
-            member (Union[str, bytes]): The member to check for existence in the set.
+            key (TEncodable): The key of the set.
+            member (TEncodable): The member to check for existence in the set.
 
         Returns:
             bool: True if the member exists in the set, False otherwise.
@@ -1965,9 +1966,9 @@ class CoreCommands(Protocol):
 
     async def smove(
         self,
-        source: Union[str, bytes],
-        destination: Union[str, bytes],
-        member: Union[str, bytes],
+        source: TEncodable,
+        destination: TEncodable,
+        member: TEncodable,
     ) -> bool:
         """
         Moves `member` from the set at `source` to the set at `destination`, removing it from the source set. Creates a
@@ -1979,9 +1980,9 @@ class CoreCommands(Protocol):
             When in cluster mode, `source` and `destination` must map to the same hash slot.
 
         Args:
-            source (Union[str, bytes]): The key of the set to remove the element from.
-            destination (Union[str, bytes]): The key of the set to add the element to.
-            member (Union[str, bytes]): The set element to move.
+            source (TEncodable): The key of the set to remove the element from.
+            destination (TEncodable): The key of the set to add the element to.
+            member (TEncodable): The set element to move.
 
         Returns:
             bool: True on success, or False if the `source` set does not exist or the element is not a member of the source set.
@@ -1997,7 +1998,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def sunion(self, keys: List[Union[str, bytes]]) -> Set[bytes]:
+    async def sunion(self, keys: List[TEncodable]) -> Set[bytes]:
         """
         Gets the union of all the given sets.
 
@@ -2007,7 +2008,7 @@ class CoreCommands(Protocol):
             When in cluster mode, all `keys` must map to the same hash slot.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sets.
+            keys (List[TEncodable]): The keys of the sets.
 
         Returns:
             Set[bytes]: A set of members which are present in at least one of the given sets.
@@ -2025,8 +2026,8 @@ class CoreCommands(Protocol):
 
     async def sunionstore(
         self,
-        destination: Union[str, bytes],
-        keys: List[Union[str, bytes]],
+        destination: TEncodable,
+        keys: List[TEncodable],
     ) -> int:
         """
         Stores the members of the union of all given sets specified by `keys` into a new set at `destination`.
@@ -2037,8 +2038,8 @@ class CoreCommands(Protocol):
             When in cluster mode, all keys in `keys` and `destination` must map to the same hash slot.
 
         Args:
-            destination (Union[str, bytes]): The key of the destination set.
-            keys (List[Union[str, bytes]]): The keys from which to retrieve the set members.
+            destination (TEncodable): The key of the destination set.
+            keys (List[TEncodable]): The keys from which to retrieve the set members.
 
         Returns:
             int: The number of elements in the resulting set.
@@ -2055,7 +2056,7 @@ class CoreCommands(Protocol):
         )
 
     async def sdiffstore(
-        self, destination: Union[str, bytes], keys: List[Union[str, bytes]]
+        self, destination: TEncodable, keys: List[TEncodable]
     ) -> int:
         """
         Stores the difference between the first set and all the successive sets in `keys` into a new set at
@@ -2067,8 +2068,8 @@ class CoreCommands(Protocol):
             When in Cluster mode, all keys in `keys` and `destination` must map to the same hash slot.
 
         Args:
-            destination (Union[str, bytes]): The key of the destination set.
-            keys (List[Union[str, bytes]]): The keys of the sets to diff.
+            destination (TEncodable): The key of the destination set.
+            keys (List[TEncodable]): The keys of the sets to diff.
 
         Returns:
             int: The number of elements in the resulting set.
@@ -2084,7 +2085,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.SDiffStore, [destination] + keys),
         )
 
-    async def sinter(self, keys: List[Union[str, bytes]]) -> Set[bytes]:
+    async def sinter(self, keys: List[TEncodable]) -> Set[bytes]:
         """
         Gets the intersection of all the given sets.
 
@@ -2094,7 +2095,7 @@ class CoreCommands(Protocol):
             When in cluster mode, all `keys` must map to the same hash slot.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sets.
+            keys (List[TEncodable]): The keys of the sets.
 
         Returns:
             Set[bytes]: A set of members which are present in all given sets.
@@ -2111,7 +2112,7 @@ class CoreCommands(Protocol):
         return cast(Set[bytes], await self._execute_command(RequestType.SInter, keys))
 
     async def sinterstore(
-        self, destination: Union[str, bytes], keys: List[Union[str, bytes]]
+        self, destination: TEncodable, keys: List[TEncodable]
     ) -> int:
         """
         Stores the members of the intersection of all given sets specified by `keys` into a new set at `destination`.
@@ -2122,8 +2123,8 @@ class CoreCommands(Protocol):
             When in Cluster mode, all `keys` and `destination` must map to the same hash slot.
 
         Args:
-            destination (Union[str, bytes]): The key of the destination set.
-            keys (List[Union[str, bytes]]): The keys from which to retrieve the set members.
+            destination (TEncodable): The key of the destination set.
+            keys (List[TEncodable]): The keys from which to retrieve the set members.
 
         Returns:
             int: The number of elements in the resulting set.
@@ -2140,7 +2141,7 @@ class CoreCommands(Protocol):
         )
 
     async def sintercard(
-        self, keys: List[Union[str, bytes]], limit: Optional[int] = None
+        self, keys: List[TEncodable], limit: Optional[int] = None
     ) -> int:
         """
         Gets the cardinality of the intersection of all the given sets.
@@ -2151,7 +2152,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/sintercard for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): A list of keys representing the sets to intersect.
+            keys (List[TEncodable]): A list of keys representing the sets to intersect.
             limit (Optional[int]): An optional limit to the maximum number of intersecting elements to count.
                 If specified, the computation stops as soon as the cardinality reaches this limit.
 
@@ -2167,7 +2168,7 @@ class CoreCommands(Protocol):
             >>> await client.sintercard([b"set1", b"set2"], limit=1)
             1  # The computation stops early as the intersection cardinality reaches the limit of 1.
         """
-        args: List[Union[str, bytes]] = [str(len(keys))]
+        args: List[TEncodable] = [str(len(keys))]
         args.extend(keys)
         if limit is not None:
             args += ["LIMIT", str(limit)]
@@ -2176,7 +2177,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.SInterCard, args),
         )
 
-    async def sdiff(self, keys: List[Union[str, bytes]]) -> Set[bytes]:
+    async def sdiff(self, keys: List[TEncodable]) -> Set[bytes]:
         """
         Computes the difference between the first set and all the successive sets in `keys`.
 
@@ -2186,7 +2187,7 @@ class CoreCommands(Protocol):
             When in cluster mode, all `keys` must map to the same hash slot.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sets to diff
+            keys (List[TEncodable]): The keys of the sets to diff
 
         Returns:
             Set[bytes]: A set of elements representing the difference between the sets.
@@ -2204,7 +2205,7 @@ class CoreCommands(Protocol):
         )
 
     async def smismember(
-        self, key: Union[str, bytes], members: List[Union[str, bytes]]
+        self, key: TEncodable, members: List[TEncodable]
     ) -> List[bool]:
         """
         Checks whether each member is contained in the members of the set stored at `key`.
@@ -2212,8 +2213,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/smismember for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the set to check.
-            members (List[Union[str, bytes]]): A list of members to check for existence in the set.
+            key (TEncodable): The key of the set to check.
+            members (List[TEncodable]): A list of members to check for existence in the set.
 
         Returns:
             List[bool]: A list of bool values, each indicating if the respective member exists in the set.
@@ -2228,7 +2229,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.SMIsMember, [key] + members),
         )
 
-    async def ltrim(self, key: Union[str, bytes], start: int, end: int) -> TOK:
+    async def ltrim(self, key: TEncodable, start: int, end: int) -> TOK:
         """
         Trim an existing list so that it will contain only the specified range of elements specified.
         The offsets `start` and `end` are zero-based indexes, with 0 being the first element of the list, 1 being the next
@@ -2238,7 +2239,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/ltrim/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             start (int): The starting point of the range.
             end (int): The end of the range.
 
@@ -2259,7 +2260,7 @@ class CoreCommands(Protocol):
         )
 
     async def lrem(
-        self, key: Union[str, bytes], count: int, element: Union[str, bytes]
+        self, key: TEncodable, count: int, element: TEncodable
     ) -> int:
         """
         Removes the first `count` occurrences of elements equal to `element` from the list stored at `key`.
@@ -2270,9 +2271,9 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/lrem/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
             count (int): The count of occurrences of elements equal to `element` to remove.
-            element (Union[str, bytes]): The element to remove from the list.
+            element (TEncodable): The element to remove from the list.
 
         Returns:
             int: The number of removed elements.
@@ -2287,13 +2288,13 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.LRem, [key, str(count), element]),
         )
 
-    async def llen(self, key: Union[str, bytes]) -> int:
+    async def llen(self, key: TEncodable) -> int:
         """
         Get the length of the list stored at `key`.
         See https://redis.io/commands/llen/ for details.
 
         Args:
-            key (Union[str, bytes]): The key of the list.
+            key (TEncodable): The key of the list.
 
         Returns:
             int: The length of the list at the specified key.
@@ -2305,7 +2306,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.LLen, [key]))
 
-    async def exists(self, keys: List[Union[str, bytes]]) -> int:
+    async def exists(self, keys: List[TEncodable]) -> int:
         """
         Returns the number of keys in `keys` that exist in the database.
         See https://redis.io/commands/exists/ for more details.
@@ -2314,7 +2315,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[Union[str, bytes]]): The list of keys to check.
+            keys (List[TEncodable]): The list of keys to check.
 
         Returns:
             int: The number of keys that exist. If the same existing key is mentioned in `keys` multiple times,
@@ -2326,7 +2327,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.Exists, keys))
 
-    async def unlink(self, keys: List[Union[str, bytes]]) -> int:
+    async def unlink(self, keys: List[TEncodable]) -> int:
         """
         Unlink (delete) multiple keys from the database.
         A key is ignored if it does not exist.
@@ -2338,7 +2339,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[Union[str, bytes]]): The list of keys to unlink.
+            keys (List[TEncodable]): The list of keys to unlink.
 
         Returns:
             int: The number of keys that were unlinked.
@@ -2351,7 +2352,7 @@ class CoreCommands(Protocol):
 
     async def expire(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         seconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> bool:
@@ -2363,7 +2364,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/expire/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to set a timeout on.
+            key (TEncodable): The key to set a timeout on.
             seconds (int): The timeout in seconds.
             option (ExpireOptions, optional): The expire option.
 
@@ -2375,14 +2376,14 @@ class CoreCommands(Protocol):
             >>> await client.expire(b"my_key", 60)
                 True  # Indicates that a timeout of 60 seconds has been set for "my_key."
         """
-        args: List[Union[str, bytes]] = (
+        args: List[TEncodable] = (
             [key, str(seconds)] if option is None else [key, str(seconds), option.value]
         )
         return cast(bool, await self._execute_command(RequestType.Expire, args))
 
     async def expireat(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         unix_seconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> bool:
@@ -2396,7 +2397,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/expireat/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to set a timeout on.
+            key (TEncodable): The key to set a timeout on.
             unix_seconds (int): The timeout in an absolute Unix timestamp.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -2417,7 +2418,7 @@ class CoreCommands(Protocol):
 
     async def pexpire(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         milliseconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> bool:
@@ -2429,7 +2430,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/pexpire/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to set a timeout on.
+            key (TEncodable): The key to set a timeout on.
             milliseconds (int): The timeout in milliseconds.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -2450,7 +2451,7 @@ class CoreCommands(Protocol):
 
     async def pexpireat(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         unix_milliseconds: int,
         option: Optional[ExpireOptions] = None,
     ) -> bool:
@@ -2464,7 +2465,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/pexpireat/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to set a timeout on.
+            key (TEncodable): The key to set a timeout on.
             unix_milliseconds (int): The timeout in an absolute Unix timestamp in milliseconds.
             option (Optional[ExpireOptions]): The expire option.
 
@@ -2483,7 +2484,7 @@ class CoreCommands(Protocol):
         )
         return cast(bool, await self._execute_command(RequestType.PExpireAt, args))
 
-    async def expiretime(self, key: Union[str, bytes]) -> int:
+    async def expiretime(self, key: TEncodable) -> int:
         """
         Returns the absolute Unix timestamp (since January 1, 1970) at which
         the given `key` will expire, in seconds.
@@ -2492,7 +2493,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/expiretime/ for details.
 
         Args:
-            key (Union[str, bytes]): The `key` to determine the expiration value of.
+            key (TEncodable): The `key` to determine the expiration value of.
 
         Returns:
             int: The expiration Unix timestamp in seconds, -2 if `key` does not exist or -1 if `key` exists but has no associated expire.
@@ -2511,7 +2512,7 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.ExpireTime, [key]))
 
-    async def pexpiretime(self, key: Union[str, bytes]) -> int:
+    async def pexpiretime(self, key: TEncodable) -> int:
         """
         Returns the absolute Unix timestamp (since January 1, 1970) at which
         the given `key` will expire, in milliseconds.
@@ -2519,7 +2520,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/pexpiretime/ for details.
 
         Args:
-            key (Union[str, bytes]): The `key` to determine the expiration value of.
+            key (TEncodable): The `key` to determine the expiration value of.
 
         Returns:
             int: The expiration Unix timestamp in milliseconds, -2 if `key` does not exist, or -1 if `key` exists but has no associated expiration.
@@ -2538,13 +2539,13 @@ class CoreCommands(Protocol):
         """
         return cast(int, await self._execute_command(RequestType.PExpireTime, [key]))
 
-    async def ttl(self, key: Union[str, bytes]) -> int:
+    async def ttl(self, key: TEncodable) -> int:
         """
         Returns the remaining time to live of `key` that has a timeout.
         See https://redis.io/commands/ttl/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to return its timeout.
+            key (TEncodable): The key to return its timeout.
 
         Returns:
             int: TTL in seconds, -2 if `key` does not exist or -1 if `key` exists but has no associated expire.
@@ -2561,14 +2562,14 @@ class CoreCommands(Protocol):
 
     async def pttl(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
     ) -> int:
         """
         Returns the remaining time to live of `key` that has a timeout, in milliseconds.
         See https://redis.io/commands/pttl for more details.
 
         Args:
-            key (Union[str, bytes]): The key to return its timeout.
+            key (TEncodable): The key to return its timeout.
 
         Returns:
             int: TTL in milliseconds. -2 if `key` does not exist, -1 if `key` exists but has no associated expire.
@@ -2586,7 +2587,7 @@ class CoreCommands(Protocol):
 
     async def persist(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
     ) -> bool:
         """
         Remove the existing timeout on `key`, turning the key from volatile (a key with an expire set) to
@@ -2595,7 +2596,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/persist/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to remove the existing timeout on.
+            key (TEncodable): The key to remove the existing timeout on.
 
         Returns:
             bool: False if `key` does not exist or does not have an associated timeout, True if the timeout has been removed.
@@ -2609,14 +2610,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.Persist, [key]),
         )
 
-    async def type(self, key: Union[str, bytes]) -> bytes:
+    async def type(self, key: TEncodable) -> bytes:
         """
         Returns the string representation of the type of the value stored at `key`.
 
         See https://redis.io/commands/type/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key to check its data type.
+            key (TEncodable): The key to check its data type.
 
         Returns:
             bytes: If the key exists, the type of the stored value is returned.
@@ -2634,8 +2635,8 @@ class CoreCommands(Protocol):
 
     async def xadd(
         self,
-        key: Union[str, bytes],
-        values: List[Tuple[Union[str, bytes], Union[str, bytes]]],
+        key: TEncodable,
+        values: List[Tuple[TEncodable, TEncodable]],
         options: Optional[StreamAddOptions] = None,
     ) -> Optional[bytes]:
         """
@@ -2644,8 +2645,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xadd for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            values (List[Tuple[Union[str, bytes], Union[str, bytes]]]): Field-value pairs to be added to the entry.
+            key (TEncodable): The key of the stream.
+            values (List[Tuple[TEncodable, TEncodable]]): Field-value pairs to be added to the entry.
             options (Optional[StreamAddOptions]): Additional options for adding entries to the stream. Default to None. See `StreamAddOptions`.
 
         Returns:
@@ -2659,7 +2660,7 @@ class CoreCommands(Protocol):
             >>> await client.xadd(b"non_existing_stream", [(b"field", b"foo1"), (b"field2", b"bar1")], StreamAddOptions(id=b"0-1"))
                 b"0-1"  # Returns the stream id.
         """
-        args: List[Union[str, bytes]] = [key]
+        args: List[TEncodable] = [key]
         if options:
             args.extend(options.to_args())
         else:
@@ -2670,15 +2671,15 @@ class CoreCommands(Protocol):
             Optional[bytes], await self._execute_command(RequestType.XAdd, args)
         )
 
-    async def xdel(self, key: Union[str, bytes], ids: List[Union[str, bytes]]) -> int:
+    async def xdel(self, key: TEncodable, ids: List[TEncodable]) -> int:
         """
         Removes the specified entries by id from a stream, and returns the number of entries deleted.
 
         See https://valkey.io/commands/xdel for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            ids (List[Union[str, bytes]]): An array of entry ids.
+            key (TEncodable): The key of the stream.
+            ids (List[TEncodable]): An array of entry ids.
 
         Returns:
             int: The number of entries removed from the stream. This number may be less than the number of entries in
@@ -2688,7 +2689,7 @@ class CoreCommands(Protocol):
             >>> await client.xdel("key", ["1538561698944-0", "1538561698944-1"])
                 2  # Stream marked 2 entries as deleted.
         """
-        args: List[Union[str, bytes]] = [key]
+        args: List[TEncodable] = [key]
         args.extend(ids)
         return cast(
             int,
@@ -2697,7 +2698,7 @@ class CoreCommands(Protocol):
 
     async def xtrim(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         options: StreamTrimOptions,
     ) -> int:
         """
@@ -2706,7 +2707,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xtrim for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
+            key (TEncodable): The key of the stream.
             options (StreamTrimOptions): Options detailing how to trim the stream. See `StreamTrimOptions`.
 
         Returns:
@@ -2723,14 +2724,14 @@ class CoreCommands(Protocol):
 
         return cast(int, await self._execute_command(RequestType.XTrim, args))
 
-    async def xlen(self, key: Union[str, bytes]) -> int:
+    async def xlen(self, key: TEncodable) -> int:
         """
         Returns the number of entries in the stream stored at `key`.
 
         See https://valkey.io/commands/xlen for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
+            key (TEncodable): The key of the stream.
 
         Returns:
             int: The number of entries in the stream. If `key` does not exist, returns 0.
@@ -2748,7 +2749,7 @@ class CoreCommands(Protocol):
 
     async def xrange(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         start: StreamRangeBound,
         end: StreamRangeBound,
         count: Optional[int] = None,
@@ -2759,7 +2760,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xrange for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
+            key (TEncodable): The key of the stream.
             start (StreamRangeBound): The starting stream ID bound for the range.
                 - Use `IdBound` to specify a stream ID.
                 - Use `ExclusiveIdBound` to specify an exclusive bounded stream ID.
@@ -2785,7 +2786,7 @@ class CoreCommands(Protocol):
                     b"0-2": [[b"field2", b"value2"], [b"field2", b"value3"]]
                 }  # Indicates the stream IDs and their associated field-value pairs for all stream entries in "mystream".
         """
-        args: List[Union[str, bytes]] = [key, start.to_arg(), end.to_arg()]
+        args: List[TEncodable] = [key, start.to_arg(), end.to_arg()]
         if count is not None:
             args.extend(["COUNT", str(count)])
 
@@ -2796,7 +2797,7 @@ class CoreCommands(Protocol):
 
     async def xrevrange(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         end: StreamRangeBound,
         start: StreamRangeBound,
         count: Optional[int] = None,
@@ -2808,7 +2809,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xrevrange for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
+            key (TEncodable): The key of the stream.
             end (StreamRangeBound): The ending stream ID bound for the range.
                 - Use `IdBound` to specify a stream ID.
                 - Use `ExclusiveIdBound` to specify an exclusive bounded stream ID.
@@ -2834,7 +2835,7 @@ class CoreCommands(Protocol):
                     b"0-1": [[b"field1", b"value1"]]
                 }  # Indicates the stream IDs and their associated field-value pairs for all stream entries in "mystream".
         """
-        args: List[Union[str, bytes]] = [key, end.to_arg(), start.to_arg()]
+        args: List[TEncodable] = [key, end.to_arg(), start.to_arg()]
         if count is not None:
             args.extend(["COUNT", str(count)])
 
@@ -2845,7 +2846,7 @@ class CoreCommands(Protocol):
 
     async def xread(
         self,
-        keys_and_ids: Mapping[Union[str, bytes], Union[str, bytes]],
+        keys_and_ids: Mapping[TEncodable, TEncodable],
         options: Optional[StreamReadOptions] = None,
     ) -> Optional[Mapping[bytes, Mapping[bytes, List[List[bytes]]]]]:
         """
@@ -2857,7 +2858,7 @@ class CoreCommands(Protocol):
             When in cluster mode, all keys in `keys_and_ids` must map to the same hash slot.
 
         Args:
-            keys_and_ids (Mapping[Union[str, bytes], Union[str, bytes]]): A mapping of keys and entry IDs to read from. The mapping is composed of a
+            keys_and_ids (Mapping[TEncodable, TEncodable]): A mapping of keys and entry IDs to read from. The mapping is composed of a
                 stream's key and the ID of the entry after which the stream will be read.
             options (Optional[StreamReadOptions]): Options detailing how to read the stream.
 
@@ -2881,7 +2882,7 @@ class CoreCommands(Protocol):
                 # Indicates the stream entries for "my_stream" with IDs greater than "0-0". The operation blocks up to
                 # 1000ms if there is no stream data.
         """
-        args: List[Union[str, bytes]] = [] if options is None else options.to_args()
+        args: List[TEncodable] = [] if options is None else options.to_args()
         args.append("STREAMS")
         args.extend([key for key in keys_and_ids.keys()])
         args.extend([value for value in keys_and_ids.values()])
@@ -2893,9 +2894,9 @@ class CoreCommands(Protocol):
 
     async def xgroup_create(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        group_id: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
+        group_id: TEncodable,
         options: Optional[StreamGroupOptions] = None,
     ) -> TOK:
         """
@@ -2904,9 +2905,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xgroup-create for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The newly created consumer group name.
-            group_id (Union[str, bytes]): The stream entry ID that specifies the last delivered entry in the stream from the new
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The newly created consumer group name.
+            group_id (TEncodable): The stream entry ID that specifies the last delivered entry in the stream from the new
                 group’s perspective. The special ID "$" can be used to specify the last entry in the stream.
             options (Optional[StreamGroupOptions]): Options for creating the stream group.
 
@@ -2919,7 +2920,7 @@ class CoreCommands(Protocol):
                 # Created the consumer group "mygroup" for the stream "mystream", which will track entries created after
                 # the most recent entry. The stream was created with length 0 if it did not already exist.
         """
-        args: List[Union[str, bytes]] = [key, group_name, group_id]
+        args: List[TEncodable] = [key, group_name, group_id]
         if options is not None:
             args.extend(options.to_args())
 
@@ -2929,7 +2930,7 @@ class CoreCommands(Protocol):
         )
 
     async def xgroup_destroy(
-        self, key: Union[str, bytes], group_name: Union[str, bytes]
+        self, key: TEncodable, group_name: TEncodable
     ) -> bool:
         """
         Destroys the consumer group `group_name` for the stream stored at `key`.
@@ -2937,8 +2938,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xgroup-destroy for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name to delete.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name to delete.
 
         Returns:
             bool: True if the consumer group was destroyed. Otherwise, returns False.
@@ -2954,9 +2955,9 @@ class CoreCommands(Protocol):
 
     async def xgroup_create_consumer(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        consumer_name: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
+        consumer_name: TEncodable,
     ) -> bool:
         """
         Creates a consumer named `consumer_name` in the consumer group `group_name` for the stream stored at `key`.
@@ -2964,9 +2965,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xgroup-createconsumer for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
-            consumer_name (Union[str, bytes]): The newly created consumer.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
+            consumer_name (TEncodable): The newly created consumer.
 
         Returns:
             bool: True if the consumer is created. Otherwise, returns False.
@@ -2984,9 +2985,9 @@ class CoreCommands(Protocol):
 
     async def xgroup_del_consumer(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        consumer_name: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
+        consumer_name: TEncodable,
     ) -> int:
         """
         Deletes a consumer named `consumer_name` in the consumer group `group_name` for the stream stored at `key`.
@@ -2994,9 +2995,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xgroup-delconsumer for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
-            consumer_name (Union[str, bytes]): The consumer to delete.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
+            consumer_name (TEncodable): The consumer to delete.
 
         Returns:
             int: The number of pending messages the `consumer` had before it was deleted.
@@ -3014,10 +3015,10 @@ class CoreCommands(Protocol):
 
     async def xgroup_set_id(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        stream_id: Union[str, bytes],
-        entries_read_id: Optional[Union[str, bytes]] = None,
+        key: TEncodable,
+        group_name: TEncodable,
+        stream_id: TEncodable,
+        entries_read_id: Optional[TEncodable] = None,
     ) -> TOK:
         """
         Set the last delivered ID for a consumer group.
@@ -3025,10 +3026,10 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xgroup-setid for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
-            stream_id (Union[str, bytes]): The stream entry ID that should be set as the last delivered ID for the consumer group.
-            entries_read_id (Optional[Union[str, bytes]]): An arbitrary ID (that isn't the first ID, last ID, or the zero ID ("0-0"))
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
+            stream_id (TEncodable): The stream entry ID that should be set as the last delivered ID for the consumer group.
+            entries_read_id (Optional[TEncodable]): An arbitrary ID (that isn't the first ID, last ID, or the zero ID ("0-0"))
                 used to find out how many entries are between the arbitrary ID (excluding it) and the stream's last
                 entry. This argument can only be specified if you are using Redis version 7.0.0 or above.
 
@@ -3039,7 +3040,7 @@ class CoreCommands(Protocol):
             >>> await client.xgroup_set_id("mystream", "mygroup", "0")
                 OK  # The last delivered ID for consumer group "mygroup" was set to 0.
         """
-        args: List[Union[str, bytes]] = [key, group_name, stream_id]
+        args: List[TEncodable] = [key, group_name, stream_id]
         if entries_read_id is not None:
             args.extend(["ENTRIESREAD", entries_read_id])
 
@@ -3051,8 +3052,8 @@ class CoreCommands(Protocol):
     async def xreadgroup(
         self,
         keys_and_ids: Mapping[str, str],
-        group_name: Union[str, bytes],
-        consumer_name: Union[str, bytes],
+        group_name: TEncodable,
+        consumer_name: TEncodable,
         options: Optional[StreamReadGroupOptions] = None,
     ) -> Optional[Mapping[bytes, Mapping[bytes, Optional[List[List[bytes]]]]]]:
         """
@@ -3086,7 +3087,7 @@ class CoreCommands(Protocol):
                     }
                 }  # Read one stream entry from "mystream" using "myconsumer" in the consumer group "mygroup".
         """
-        args: List[Union[str, bytes]] = ["GROUP", group_name, consumer_name]
+        args: List[TEncodable] = ["GROUP", group_name, consumer_name]
         if options is not None:
             args.extend(options.to_args())
 
@@ -3101,9 +3102,9 @@ class CoreCommands(Protocol):
 
     async def xack(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        ids: List[Union[str, bytes]],
+        key: TEncodable,
+        group_name: TEncodable,
+        ids: List[TEncodable],
     ) -> int:
         """
         Removes one or multiple messages from the Pending Entries List (PEL) of a stream consumer group.
@@ -3113,9 +3114,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xack for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
-            ids (List[Union[str, bytes]]): The stream entry IDs to acknowledge and consume for the given consumer group.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
+            ids (List[TEncodable]): The stream entry IDs to acknowledge and consume for the given consumer group.
 
         Returns:
             int: The number of messages that were successfully acknowledged.
@@ -3132,7 +3133,7 @@ class CoreCommands(Protocol):
             >>> await client.xack("mystream", "mygroup", ["1-0"])
                 1  # 1 pending message was acknowledged and removed from the Pending Entries List for "mygroup".
         """
-        args: List[Union[str, bytes]] = [key, group_name]
+        args: List[TEncodable] = [key, group_name]
         args.extend(ids)
         return cast(
             int,
@@ -3141,8 +3142,8 @@ class CoreCommands(Protocol):
 
     async def xpending(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
     ) -> List[Union[int, bytes, List[List[bytes]], None]]:
         """
         Returns stream message summary information for pending messages for the given consumer group.
@@ -3150,8 +3151,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xpending for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
 
         Returns:
             List[Union[int, bytes, List[List[bytes]], None]]: A list that includes the summary of pending messages, with the
@@ -3175,8 +3176,8 @@ class CoreCommands(Protocol):
 
     async def xpending_range(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
         start: StreamRangeBound,
         end: StreamRangeBound,
         count: int,
@@ -3224,11 +3225,11 @@ class CoreCommands(Protocol):
 
     async def xautoclaim(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        consumer_name: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
+        consumer_name: TEncodable,
         min_idle_time_ms: int,
-        start: Union[str, bytes],
+        start: TEncodable,
         count: Optional[int] = None,
     ) -> List[Union[bytes, Mapping[bytes, List[List[bytes]]], List[bytes]]]:
         """
@@ -3237,12 +3238,12 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xautoclaim for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
-            consumer_name (Union[str, bytes]): The consumer name.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
+            consumer_name (TEncodable): The consumer name.
             min_idle_time_ms (int): Filters the claimed entries to those that have been idle for more than the specified
                 value.
-            start (Union[str, bytes]): Filters the claimed entries to those that have an ID equal or greater than the specified value.
+            start (TEncodable): Filters the claimed entries to those that have an ID equal or greater than the specified value.
             count (Optional[int]): Limits the number of claimed entries to the specified value.
 
         Returns:
@@ -3289,7 +3290,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 6.2.0.
         """
-        args: List[Union[str, bytes]] = [
+        args: List[TEncodable] = [
             key,
             group_name,
             consumer_name,
@@ -3306,11 +3307,11 @@ class CoreCommands(Protocol):
 
     async def xautoclaim_just_id(
         self,
-        key: Union[str, bytes],
-        group_name: Union[str, bytes],
-        consumer_name: Union[str, bytes],
+        key: TEncodable,
+        group_name: TEncodable,
+        consumer_name: TEncodable,
         min_idle_time_ms: int,
-        start: Union[str, bytes],
+        start: TEncodable,
         count: Optional[int] = None,
     ) -> List[Union[bytes, List[bytes]]]:
         """
@@ -3321,12 +3322,12 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/xautoclaim for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the stream.
-            group_name (Union[str, bytes]): The consumer group name.
-            consumer_name (Union[str, bytes]): The consumer name.
+            key (TEncodable): The key of the stream.
+            group_name (TEncodable): The consumer group name.
+            consumer_name (TEncodable): The consumer name.
             min_idle_time_ms (int): Filters the claimed entries to those that have been idle for more than the specified
                 value.
-            start (Union[str, bytes]): Filters the claimed entries to those that have an ID equal or greater than the specified value.
+            start (TEncodable): Filters the claimed entries to those that have an ID equal or greater than the specified value.
             count (Optional[int]): Limits the number of claimed entries to the specified value.
 
         Returns:
@@ -3355,7 +3356,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 6.2.0.
         """
-        args: List[Union[str, bytes]] = [
+        args: List[TEncodable] = [
             key,
             group_name,
             consumer_name,
@@ -3374,8 +3375,8 @@ class CoreCommands(Protocol):
 
     async def geoadd(
         self,
-        key: Union[str, bytes],
-        members_geospatialdata: Mapping[Union[str, bytes], GeospatialData],
+        key: TEncodable,
+        members_geospatialdata: Mapping[TEncodable, GeospatialData],
         existing_options: Optional[ConditionalChange] = None,
         changed: bool = False,
     ) -> int:
@@ -3386,8 +3387,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/geoadd for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            members_geospatialdata (Mapping[Union[str, bytes], GeospatialData]): A mapping of member names to their corresponding positions. See `GeospatialData`.
+            key (TEncodable): The key of the sorted set.
+            members_geospatialdata (Mapping[TEncodable, GeospatialData]): A mapping of member names to their corresponding positions. See `GeospatialData`.
             The command will report an error when the user attempts to index coordinates outside the specified ranges.
             existing_options (Optional[ConditionalChange]): Options for handling existing members.
                 - NX: Only add new elements.
@@ -3425,9 +3426,9 @@ class CoreCommands(Protocol):
 
     async def geodist(
         self,
-        key: Union[str, bytes],
-        member1: Union[str, bytes],
-        member2: Union[str, bytes],
+        key: TEncodable,
+        member1: TEncodable,
+        member2: TEncodable,
         unit: Optional[GeoUnit] = None,
     ) -> Optional[float]:
         """
@@ -3436,9 +3437,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/geodist for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member1 (Union[str, bytes]): The name of the first member.
-            member2 (Union[str, bytes]): The name of the second member.
+            key (TEncodable): The key of the sorted set.
+            member1 (TEncodable): The name of the first member.
+            member2 (TEncodable): The name of the second member.
             unit (Optional[GeoUnit]): The unit of distance measurement. See `GeoUnit`.
                 If not specified, the default unit is `METERS`.
 
@@ -3465,7 +3466,7 @@ class CoreCommands(Protocol):
         )
 
     async def geohash(
-        self, key: Union[str, bytes], members: List[Union[str, bytes]]
+        self, key: TEncodable, members: List[TEncodable]
     ) -> List[Optional[bytes]]:
         """
         Returns the GeoHash strings representing the positions of all the specified members in the sorted set stored at
@@ -3474,8 +3475,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/geohash for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            members (List[Union[str, bytes]]): The list of members whose GeoHash strings are to be retrieved.
+            key (TEncodable): The key of the sorted set.
+            members (List[TEncodable]): The list of members whose GeoHash strings are to be retrieved.
 
         Returns:
             List[Optional[bytes]]: A list of GeoHash strings representing the positions of the specified members stored at `key`.
@@ -3493,8 +3494,8 @@ class CoreCommands(Protocol):
 
     async def geopos(
         self,
-        key: Union[str, bytes],
-        members: List[Union[str, bytes]],
+        key: TEncodable,
+        members: List[TEncodable],
     ) -> List[Optional[List[float]]]:
         """
         Returns the positions (longitude and latitude) of all the given members of a geospatial index in the sorted set stored at
@@ -3503,8 +3504,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/geopos for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            members (List[Union[str, bytes]]): The members for which to get the positions.
+            key (TEncodable): The key of the sorted set.
+            members (List[TEncodable]): The members for which to get the positions.
 
         Returns:
             List[Optional[List[float]]]: A list of positions (longitude and latitude) corresponding to the given members.
@@ -3522,7 +3523,7 @@ class CoreCommands(Protocol):
 
     async def geosearch(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         search_from: Union[str, bytes, GeospatialData],
         search_by: Union[GeoSearchByRadius, GeoSearchByBox],
         order_by: Optional[OrderBy] = None,
@@ -3537,7 +3538,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/geosearch/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set representing geospatial data.
+            key (TEncodable): The key of the sorted set representing geospatial data.
             search_from (Union[str, bytes, GeospatialData]): The location to search from. Can be specified either as a member
                 from the sorted set or as a geospatial data (see `GeospatialData`).
             search_by (Union[GeoSearchByRadius, GeoSearchByBox]): The search criteria.
@@ -3607,8 +3608,8 @@ class CoreCommands(Protocol):
 
     async def geosearchstore(
         self,
-        destination: Union[str, bytes],
-        source: Union[str, bytes],
+        destination: TEncodable,
+        source: TEncodable,
         search_from: Union[str, bytes, GeospatialData],
         search_by: Union[GeoSearchByRadius, GeoSearchByBox],
         count: Optional[GeoSearchCount] = None,
@@ -3624,7 +3625,7 @@ class CoreCommands(Protocol):
                 When in cluster mode, both `source` and `destination` must map to the same hash slot.
 
             Args:
-                destination (Union[str, bytes]): The key to store the search results.
+                destination (TEncodable): The key to store the search results.
                 source (Union[str```python
         , bytes]): The key of the sorted set representing geospatial data to search from.
                 search_from (Union[str, bytes, GeospatialData]): The location to search from. Can be specified either as a member
@@ -3674,8 +3675,8 @@ class CoreCommands(Protocol):
 
     async def zadd(
         self,
-        key: Union[str, bytes],
-        members_scores: Mapping[Union[str, bytes], float],
+        key: TEncodable,
+        members_scores: Mapping[TEncodable, float],
         existing_options: Optional[ConditionalChange] = None,
         update_condition: Optional[UpdateOptions] = None,
         changed: bool = False,
@@ -3687,8 +3688,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zadd/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            members_scores (Mapping[Union[str, bytes], float]): A mapping of members to their corresponding scores.
+            key (TEncodable): The key of the sorted set.
+            members_scores (Mapping[TEncodable, float]): A mapping of members to their corresponding scores.
             existing_options (Optional[ConditionalChange]): Options for handling existing members.
                 - NX: Only add new elements.
                 - XX: Only update existing elements.
@@ -3736,8 +3737,8 @@ class CoreCommands(Protocol):
 
     async def zadd_incr(
         self,
-        key: Union[str, bytes],
-        member: Union[str, bytes],
+        key: TEncodable,
+        member: TEncodable,
         increment: float,
         existing_options: Optional[ConditionalChange] = None,
         update_condition: Optional[UpdateOptions] = None,
@@ -3750,8 +3751,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zadd/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member (Union[str, bytes]): A member in the sorted set to increment.
+            key (TEncodable): The key of the sorted set.
+            member (TEncodable): A member in the sorted set to increment.
             increment (float): The score to increment the member.
             existing_options (Optional[ConditionalChange]): Options for handling the member's existence.
                 - NX: Only increment a member that doesn't exist.
@@ -3792,14 +3793,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ZAdd, args),
         )
 
-    async def zcard(self, key: Union[str, bytes]) -> int:
+    async def zcard(self, key: TEncodable) -> int:
         """
         Returns the cardinality (number of elements) of the sorted set stored at `key`.
 
         See https://redis.io/commands/zcard/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
 
         Returns:
             int: The number of elements in the sorted set.
@@ -3815,7 +3816,7 @@ class CoreCommands(Protocol):
 
     async def zcount(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         min_score: Union[InfBound, ScoreBoundary],
         max_score: Union[InfBound, ScoreBoundary],
     ) -> int:
@@ -3825,7 +3826,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zcount/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             min_score (Union[InfBound, ScoreBoundary]): The minimum score to count from.
                 Can be an instance of InfBound representing positive/negative infinity,
                 or ScoreBoundary representing a specific score and inclusivity.
@@ -3862,7 +3863,7 @@ class CoreCommands(Protocol):
         )
 
     async def zincrby(
-        self, key: Union[str, bytes], increment: float, member: Union[str, bytes]
+        self, key: TEncodable, increment: float, member: TEncodable
     ) -> float:
         """
         Increments the score of `member` in the sorted set stored at `key` by `increment`.
@@ -3872,9 +3873,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zincrby/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             increment (float): The score increment.
-            member (Union[str, bytes]): A member of the sorted set.
+            member (TEncodable): A member of the sorted set.
 
         Returns:
             float: The new score of `member`.
@@ -3896,7 +3897,7 @@ class CoreCommands(Protocol):
         )
 
     async def zpopmax(
-        self, key: Union[str, bytes], count: Optional[int] = None
+        self, key: TEncodable, count: Optional[int] = None
     ) -> Mapping[bytes, float]:
         """
         Removes and returns the members with the highest scores from the sorted set stored at `key`.
@@ -3906,7 +3907,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zpopmax for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             count (Optional[int]): Specifies the quantity of members to pop. If not specified, pops one member.
             If `count` is higher than the sorted set's cardinality, returns all members and their scores, ordered from highest to lowest.
 
@@ -3928,7 +3929,7 @@ class CoreCommands(Protocol):
         )
 
     async def bzpopmax(
-        self, keys: List[Union[str, bytes]], timeout: float
+        self, keys: List[TEncodable], timeout: float
     ) -> Optional[List[Union[bytes, float]]]:
         """
         Pops the member with the highest score from the first non-empty sorted set, with the given keys being checked in
@@ -3944,7 +3945,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bzpopmax for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
             timeout (float): The number of seconds to wait for a blocking operation to complete.
                 A value of 0 will block indefinitely.
 
@@ -3964,7 +3965,7 @@ class CoreCommands(Protocol):
         )
 
     async def zpopmin(
-        self, key: Union[str, bytes], count: Optional[int] = None
+        self, key: TEncodable, count: Optional[int] = None
     ) -> Mapping[bytes, float]:
         """
         Removes and returns the members with the lowest scores from the sorted set stored at `key`.
@@ -3974,7 +3975,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zpopmin for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             count (Optional[int]): Specifies the quantity of members to pop. If not specified, pops one member.
             If `count` is higher than the sorted set's cardinality, returns all members and their scores.
 
@@ -3996,7 +3997,7 @@ class CoreCommands(Protocol):
         )
 
     async def bzpopmin(
-        self, keys: List[Union[str, bytes]], timeout: float
+        self, keys: List[TEncodable], timeout: float
     ) -> Optional[List[Union[bytes, float]]]:
         """
         Pops the member with the lowest score from the first non-empty sorted set, with the given keys being checked in
@@ -4012,7 +4013,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bzpopmin for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
             timeout (float): The number of seconds to wait for a blocking operation to complete.
                 A value of 0 will block indefinitely.
 
@@ -4033,7 +4034,7 @@ class CoreCommands(Protocol):
 
     async def zrange(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         range_query: Union[RangeByIndex, RangeByLex, RangeByScore],
         reverse: bool = False,
     ) -> List[bytes]:
@@ -4047,7 +4048,7 @@ class CoreCommands(Protocol):
         To get the elements with their scores, see zrange_withscores.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             range_query (Union[RangeByIndex, RangeByLex, RangeByScore]): The range query object representing the type of range query to perform.
                 - For range queries by index (rank), use RangeByIndex.
                 - For range queries by lexicographical order, use RangeByLex.
@@ -4070,7 +4071,7 @@ class CoreCommands(Protocol):
 
     async def zrange_withscores(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         range_query: Union[RangeByIndex, RangeByScore],
         reverse: bool = False,
     ) -> Mapping[bytes, float]:
@@ -4081,7 +4082,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zrange/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             range_query (Union[RangeByIndex, RangeByScore]): The range query object representing the type of range query to perform.
                 - For range queries by index (rank), use RangeByIndex.
                 - For range queries by score, use RangeByScore.
@@ -4105,8 +4106,8 @@ class CoreCommands(Protocol):
 
     async def zrangestore(
         self,
-        destination: Union[str, bytes],
-        source: Union[str, bytes],
+        destination: TEncodable,
+        source: TEncodable,
         range_query: Union[RangeByIndex, RangeByLex, RangeByScore],
         reverse: bool = False,
     ) -> int:
@@ -4123,8 +4124,8 @@ class CoreCommands(Protocol):
             When in Cluster mode, `source` and `destination` must map to the same hash slot.
 
         Args:
-            destination (Union[str, bytes]): The key for the destination sorted set.
-            source (Union[str, bytes]): The key of the source sorted set.
+            destination (TEncodable): The key for the destination sorted set.
+            source (TEncodable): The key of the source sorted set.
             range_query (Union[RangeByIndex, RangeByLex, RangeByScore]): The range query object representing the type of range query to perform.
                 - For range queries by index (rank), use RangeByIndex.
                 - For range queries by lexicographical order, use RangeByLex.
@@ -4146,8 +4147,8 @@ class CoreCommands(Protocol):
 
     async def zrank(
         self,
-        key: Union[str, bytes],
-        member: Union[str, bytes],
+        key: TEncodable,
+        member: TEncodable,
     ) -> Optional[int]:
         """
         Returns the rank of `member` in the sorted set stored at `key`, with scores ordered from low to high.
@@ -4157,8 +4158,8 @@ class CoreCommands(Protocol):
         To get the rank of `member` with its score, see `zrank_withscore`.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member (Union[str, bytes]): The member whose rank is to be retrieved.
+            key (TEncodable): The key of the sorted set.
+            member (TEncodable): The member whose rank is to be retrieved.
 
         Returns:
             Optional[int]: The rank of `member` in the sorted set.
@@ -4176,8 +4177,8 @@ class CoreCommands(Protocol):
 
     async def zrank_withscore(
         self,
-        key: Union[str, bytes],
-        member: Union[str, bytes],
+        key: TEncodable,
+        member: TEncodable,
     ) -> Optional[List[Union[int, float]]]:
         """
         Returns the rank of `member` in the sorted set stored at `key` with its score, where scores are ordered from the lowest to highest.
@@ -4185,8 +4186,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zrank for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member (Union[str, bytes]): The member whose rank is to be retrieved.
+            key (TEncodable): The key of the sorted set.
+            member (TEncodable): The member whose rank is to be retrieved.
 
         Returns:
             Optional[List[Union[int, float]]]: A list containing the rank and score of `member` in the sorted set.
@@ -4206,7 +4207,7 @@ class CoreCommands(Protocol):
         )
 
     async def zrevrank(
-        self, key: Union[str, bytes], member: Union[str, bytes]
+        self, key: TEncodable, member: TEncodable
     ) -> Optional[int]:
         """
         Returns the rank of `member` in the sorted set stored at `key`, where scores are ordered from the highest to
@@ -4217,8 +4218,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zrevrank for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member (Union[str, bytes]): The member whose rank is to be retrieved.
+            key (TEncodable): The key of the sorted set.
+            member (TEncodable): The member whose rank is to be retrieved.
 
         Returns:
             Optional[int]: The rank of `member` in the sorted set, where ranks are ordered from high to low based on scores.
@@ -4235,7 +4236,7 @@ class CoreCommands(Protocol):
         )
 
     async def zrevrank_withscore(
-        self, key: Union[str, bytes], member: Union[str, bytes]
+        self, key: TEncodable, member: TEncodable
     ) -> Optional[List[Union[int, float]]]:
         """
         Returns the rank of `member` in the sorted set stored at `key` with its score, where scores are ordered from the
@@ -4244,8 +4245,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zrevrank for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member (Union[str, bytes]): The member whose rank is to be retrieved.
+            key (TEncodable): The key of the sorted set.
+            member (TEncodable): The member whose rank is to be retrieved.
 
         Returns:
             Optional[List[Union[int, float]]]: A list containing the rank (as `int`) and score (as `float`) of `member`
@@ -4268,8 +4269,8 @@ class CoreCommands(Protocol):
 
     async def zrem(
         self,
-        key: Union[str, bytes],
-        members: List[Union[str, bytes]],
+        key: TEncodable,
+        members: List[TEncodable],
     ) -> int:
         """
         Removes the specified members from the sorted set stored at `key`.
@@ -4278,8 +4279,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zrem/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            members (List[Union[str, bytes]]): A list of members to remove from the sorted set.
+            key (TEncodable): The key of the sorted set.
+            members (List[TEncodable]): A list of members to remove from the sorted set.
 
         Returns:
             int: The number of members that were removed from the sorted set, not including non-existing members.
@@ -4298,7 +4299,7 @@ class CoreCommands(Protocol):
 
     async def zremrangebyscore(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         min_score: Union[InfBound, ScoreBoundary],
         max_score: Union[InfBound, ScoreBoundary],
     ) -> int:
@@ -4308,7 +4309,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zremrangebyscore/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             min_score (Union[InfBound, ScoreBoundary]): The minimum score to remove from.
                 Can be an instance of InfBound representing positive/negative infinity,
                 or ScoreBoundary representing a specific score and inclusivity.
@@ -4346,7 +4347,7 @@ class CoreCommands(Protocol):
 
     async def zremrangebylex(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         min_lex: Union[InfBound, LexBoundary],
         max_lex: Union[InfBound, LexBoundary],
     ) -> int:
@@ -4357,7 +4358,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zremrangebylex/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             min_lex (Union[InfBound, LexBoundary]): The minimum bound of the lexicographical range.
                 Can be an instance of `InfBound` representing positive/negative infinity, or `LexBoundary`
                 representing a specific lex and inclusivity.
@@ -4392,7 +4393,7 @@ class CoreCommands(Protocol):
 
     async def zremrangebyrank(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         start: int,
         end: int,
     ) -> int:
@@ -4404,7 +4405,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zremrangebyrank/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             start (int): The starting point of the range.
             end (int): The end of the range.
 
@@ -4429,7 +4430,7 @@ class CoreCommands(Protocol):
 
     async def zlexcount(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         min_lex: Union[InfBound, LexBoundary],
         max_lex: Union[InfBound, LexBoundary],
     ) -> int:
@@ -4439,7 +4440,7 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zlexcount/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             min_lex (Union[InfBound, LexBoundary]): The minimum lexicographical value to count from.
                 Can be an instance of InfBound representing positive/negative infinity,
                 or LexBoundary representing a specific lexicographical value and inclusivity.
@@ -4473,7 +4474,7 @@ class CoreCommands(Protocol):
         )
 
     async def zscore(
-        self, key: Union[str, bytes], member: Union[str, bytes]
+        self, key: TEncodable, member: TEncodable
     ) -> Optional[float]:
         """
         Returns the score of `member` in the sorted set stored at `key`.
@@ -4481,8 +4482,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/zscore/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            member (Union[str, bytes]): The member whose score is to be retrieved.
+            key (TEncodable): The key of the sorted set.
+            member (TEncodable): The member whose score is to be retrieved.
 
         Returns:
             Optional[float]: The score of the member.
@@ -4502,8 +4503,8 @@ class CoreCommands(Protocol):
 
     async def zmscore(
         self,
-        key: Union[str, bytes],
-        members: List[Union[str, bytes]],
+        key: TEncodable,
+        members: List[TEncodable],
     ) -> List[Optional[float]]:
         """
         Returns the scores associated with the specified `members` in the sorted set stored at `key`.
@@ -4511,8 +4512,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zmscore for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            members (List[Union[str, bytes]]): A list of members in the sorted set.
+            key (TEncodable): The key of the sorted set.
+            members (List[TEncodable]): A list of members in the sorted set.
 
         Returns:
             List[Optional[float]]: A list of scores corresponding to `members`.
@@ -4527,7 +4528,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ZMScore, [key] + members),
         )
 
-    async def zdiff(self, keys: List[Union[str, bytes]]) -> List[bytes]:
+    async def zdiff(self, keys: List[TEncodable]) -> List[bytes]:
         """
         Returns the difference between the first sorted set and all the successive sorted sets.
         To get the elements with their scores, see `zdiff_withscores`.
@@ -4537,7 +4538,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zdiff for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
 
         Returns:
             List[bytes]: A list of elements representing the difference between the sorted sets.
@@ -4551,7 +4552,7 @@ class CoreCommands(Protocol):
             >>> await client.zdiff("sorted_set1", "sorted_set2", "sorted_set3")
                 [b"element1"]  # Indicates that "element1" is in "sorted_set1" but not "sorted_set2" or "sorted_set3".
         """
-        args: List[Union[str, bytes]] = [str(len(keys))]
+        args: List[TEncodable] = [str(len(keys))]
         args.extend(keys)
         return cast(
             List[bytes],
@@ -4559,7 +4560,7 @@ class CoreCommands(Protocol):
         )
 
     async def zdiff_withscores(
-        self, keys: List[Union[str, bytes]]
+        self, keys: List[TEncodable]
     ) -> Mapping[bytes, float]:
         """
         Returns the difference between the first sorted set and all the successive sorted sets, with the associated scores.
@@ -4568,7 +4569,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zdiff for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
 
         Returns:
             Mapping[bytes, float]: A mapping of elements and their scores representing the difference between the sorted
@@ -4591,7 +4592,7 @@ class CoreCommands(Protocol):
         )
 
     async def zdiffstore(
-        self, destination: Union[str, bytes], keys: List[Union[str, bytes]]
+        self, destination: TEncodable, keys: List[TEncodable]
     ) -> int:
         """
         Calculates the difference between the first sorted set and all the successive sorted sets at `keys` and stores
@@ -4603,8 +4604,8 @@ class CoreCommands(Protocol):
             When in Cluster mode, all keys in `keys` and `destination` must map to the same hash slot.
 
         Args:
-            destination (Union[str, bytes]): The key for the resulting sorted set.
-            keys (List[Union[str, bytes]]): The keys of the sorted sets to compare.
+            destination (TEncodable): The key for the resulting sorted set.
+            keys (List[TEncodable]): The keys of the sorted sets to compare.
 
         Returns:
             int: The number of members in the resulting sorted set stored at `destination`.
@@ -4628,7 +4629,7 @@ class CoreCommands(Protocol):
 
     async def zinter(
         self,
-        keys: List[Union[str, bytes]],
+        keys: List[TEncodable],
     ) -> List[bytes]:
         """
         Computes the intersection of sorted sets given by the specified `keys` and returns a list of intersecting elements.
@@ -4640,7 +4641,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zinter/ for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
 
         Returns:
             List[bytes]: The resulting array of intersecting elements.
@@ -4651,7 +4652,7 @@ class CoreCommands(Protocol):
             >>> await client.zinter(["key1", "key2"])
                 [b"member1"]
         """
-        args: List[Union[str, bytes]] = [str(len(keys))]
+        args: List[TEncodable] = [str(len(keys))]
         args.extend(keys)
 
         return cast(
@@ -4661,7 +4662,7 @@ class CoreCommands(Protocol):
 
     async def zinter_withscores(
         self,
-        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
+        keys: Union[List[TEncodable], List[Tuple[TEncodable, float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> Mapping[bytes, float]:
         """
@@ -4674,9 +4675,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zinter/ for more details.
 
         Args:
-            keys (Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]): The keys of the sorted sets with possible formats:
-                List[Union[str, bytes]] - for keys only.
-                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
+            keys (Union[List[TEncodable], List[Tuple[TEncodable, float]]]): The keys of the sorted sets with possible formats:
+                List[TEncodable] - for keys only.
+                List[Tuple[TEncodable, float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
@@ -4700,8 +4701,8 @@ class CoreCommands(Protocol):
 
     async def zinterstore(
         self,
-        destination: Union[str, bytes],
-        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
+        destination: TEncodable,
+        keys: Union[List[TEncodable], List[Tuple[TEncodable, float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> int:
         """
@@ -4714,10 +4715,10 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zinterstore/ for more details.
 
         Args:
-            destination (Union[str, bytes]): The key of the destination sorted set.
-            keys (Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]): The keys of the sorted sets with possible formats:
-                List[Union[str, bytes]] - for keys only.
-                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
+            destination (TEncodable): The key of the destination sorted set.
+            keys (Union[List[TEncodable], List[Tuple[TEncodable, float]]]): The keys of the sorted sets with possible formats:
+                List[TEncodable] - for keys only.
+                List[Tuple[TEncodable, float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
@@ -4744,7 +4745,7 @@ class CoreCommands(Protocol):
 
     async def zunion(
         self,
-        keys: List[Union[str, bytes]],
+        keys: List[TEncodable],
     ) -> List[bytes]:
         """
         Computes the union of sorted sets given by the specified `keys` and returns a list of union elements.
@@ -4756,7 +4757,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zunion/ for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
 
         Returns:
             List[bytes]: The resulting array of union elements.
@@ -4767,7 +4768,7 @@ class CoreCommands(Protocol):
             >>> await client.zunion(["key1", "key2"])
                 [b"member1", b"member2"]
         """
-        args: List[Union[str, bytes]] = [str(len(keys))]
+        args: List[TEncodable] = [str(len(keys))]
         args.extend(keys)
         return cast(
             List[bytes],
@@ -4776,7 +4777,7 @@ class CoreCommands(Protocol):
 
     async def zunion_withscores(
         self,
-        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
+        keys: Union[List[TEncodable], List[Tuple[TEncodable, float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> Mapping[bytes, float]:
         """
@@ -4789,9 +4790,9 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zunion/ for more details.
 
         Args:
-            keys (Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]): The keys of the sorted sets with possible formats:
-                List[Union[str, bytes]] - for keys only.
-                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
+            keys (Union[List[TEncodable], List[Tuple[TEncodable, float]]]): The keys of the sorted sets with possible formats:
+                List[TEncodable] - for keys only.
+                List[Tuple[TEncodable, float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
@@ -4815,8 +4816,8 @@ class CoreCommands(Protocol):
 
     async def zunionstore(
         self,
-        destination: Union[str, bytes],
-        keys: Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]],
+        destination: TEncodable,
+        keys: Union[List[TEncodable], List[Tuple[TEncodable, float]]],
         aggregation_type: Optional[AggregationType] = None,
     ) -> int:
         """
@@ -4829,10 +4830,10 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zunionstore/ for more details.
 
         Args:
-            destination (Union[str, bytes]): The key of the destination sorted set.
-            keys (Union[List[Union[str, bytes]], List[Tuple[Union[str, bytes], float]]]): The keys of the sorted sets with possible formats:
-                List[Union[str, bytes]] - for keys only.
-                List[Tuple[Union[str, bytes], float]] - for weighted keys with score multipliers.
+            destination (TEncodable): The key of the destination sorted set.
+            keys (Union[List[TEncodable], List[Tuple[TEncodable, float]]]): The keys of the sorted sets with possible formats:
+                List[TEncodable] - for keys only.
+                List[Tuple[TEncodable, float]] - for weighted keys with score multipliers.
             aggregation_type (Optional[AggregationType]): Specifies the aggregation strategy to apply
                 when combining the scores of elements. See `AggregationType`.
 
@@ -4857,14 +4858,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ZUnionStore, args),
         )
 
-    async def zrandmember(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def zrandmember(self, key: TEncodable) -> Optional[bytes]:
         """
         Returns a random member from the sorted set stored at 'key'.
 
         See https://valkey.io/commands/zrandmember for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
 
         Returns:
             Optional[bytes]: A random member from the sorted set.
@@ -4883,7 +4884,7 @@ class CoreCommands(Protocol):
         )
 
     async def zrandmember_count(
-        self, key: Union[str, bytes], count: int
+        self, key: TEncodable, count: int
     ) -> List[bytes]:
         """
         Retrieves up to the absolute value of `count` random members from the sorted set stored at 'key'.
@@ -4891,7 +4892,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zrandmember for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             count (int): The number of members to return.
                 If `count` is positive, returns unique members.
                 If `count` is negative, allows for duplicates members.
@@ -4913,7 +4914,7 @@ class CoreCommands(Protocol):
         )
 
     async def zrandmember_withscores(
-        self, key: Union[str, bytes], count: int
+        self, key: TEncodable, count: int
     ) -> List[List[Union[bytes, float]]]:
         """
         Retrieves up to the absolute value of `count` random members along with their scores from the sorted set
@@ -4922,7 +4923,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zrandmember for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             count (int): The number of members to return.
                 If `count` is positive, returns unique members.
                 If `count` is negative, allows for duplicates members.
@@ -4948,7 +4949,7 @@ class CoreCommands(Protocol):
 
     async def zmpop(
         self,
-        keys: List[Union[str, bytes]],
+        keys: List[TEncodable],
         filter: ScoreFilter,
         count: Optional[int] = None,
     ) -> Optional[List[Union[bytes, Mapping[bytes, float]]]]:
@@ -4967,7 +4968,7 @@ class CoreCommands(Protocol):
             When in cluster mode, all `keys` must map to the same hash slot.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
             filter (ScoreFilter): The element pop criteria - either ScoreFilter.MIN or ScoreFilter.MAX to pop
                 members with the lowest/highest scores accordingly.
             count (Optional[int]): The number of elements to pop.
@@ -4996,7 +4997,7 @@ class CoreCommands(Protocol):
 
     async def bzmpop(
         self,
-        keys: List[Union[str, bytes]],
+        keys: List[TEncodable],
         modifier: ScoreFilter,
         timeout: float,
         count: Optional[int] = None,
@@ -5018,7 +5019,7 @@ class CoreCommands(Protocol):
             2. `BZMPOP` is a client blocking command, see https://github.com/aws/glide-for-redis/wiki/General-Concepts#blocking-commands for more details and best practices.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets.
+            keys (List[TEncodable]): The keys of the sorted sets.
             modifier (ScoreFilter): The element pop criteria - either ScoreFilter.MIN or ScoreFilter.MAX to pop
                 members with the lowest/highest scores accordingly.
             timeout (float): The number of seconds to wait for a blocking operation to complete. A value of 0 will
@@ -5048,7 +5049,7 @@ class CoreCommands(Protocol):
         )
 
     async def zintercard(
-        self, keys: List[Union[str, bytes]], limit: Optional[int] = None
+        self, keys: List[TEncodable], limit: Optional[int] = None
     ) -> int:
         """
         Returns the cardinality of the intersection of the sorted sets specified by `keys`. When provided with the
@@ -5058,7 +5059,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zintercard for more details.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the sorted sets to intersect.
+            keys (List[TEncodable]): The keys of the sorted sets to intersect.
             limit (Optional[int]): An optional argument that can be used to specify a maximum number for the
                 intersection cardinality. If limit is not supplied, or if it is set to 0, there will be no limit.
 
@@ -5090,8 +5091,8 @@ class CoreCommands(Protocol):
     async def invoke_script(
         self,
         script: Script,
-        keys: Optional[List[Union[str, bytes]]] = None,
-        args: Optional[List[Union[str, bytes]]] = None,
+        keys: Optional[List[TEncodable]] = None,
+        args: Optional[List[TEncodable]] = None,
     ) -> TResult:
         """
         Invokes a Lua script with its keys and arguments.
@@ -5104,8 +5105,8 @@ class CoreCommands(Protocol):
 
         Args:
             script (Script): The Lua script to execute.
-            keys (Optional[List[Union[str, bytes]]]): The keys that are used in the script.
-            args (Optional[List[Union[str, bytes]]]): The arguments for the script.
+            keys (Optional[List[TEncodable]]): The keys that are used in the script.
+            args (Optional[List[TEncodable]]): The arguments for the script.
 
         Returns:
             TResult: a value that depends on the script that was executed.
@@ -5118,7 +5119,7 @@ class CoreCommands(Protocol):
         return await self._execute_script(script.get_hash(), keys, args)
 
     async def pfadd(
-        self, key: Union[str, bytes], elements: List[Union[str, bytes]]
+        self, key: TEncodable, elements: List[TEncodable]
     ) -> int:
         """
         Adds all elements to the HyperLogLog data structure stored at the specified `key`.
@@ -5128,8 +5129,8 @@ class CoreCommands(Protocol):
         See https://redis.io/commands/pfadd/ for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the HyperLogLog data structure to add elements into.
-            elements (List[Union[str, bytes]]): A list of members to add to the HyperLogLog stored at `key`.
+            key (TEncodable): The key of the HyperLogLog data structure to add elements into.
+            elements (List[TEncodable]): A list of members to add to the HyperLogLog stored at `key`.
 
         Returns:
             int: If the HyperLogLog is newly created, or if the HyperLogLog approximated cardinality is
@@ -5146,7 +5147,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.PfAdd, [key] + elements),
         )
 
-    async def pfcount(self, keys: List[Union[str, bytes]]) -> int:
+    async def pfcount(self, keys: List[TEncodable]) -> int:
         """
         Estimates the cardinality of the data stored in a HyperLogLog structure for a single key or
         calculates the combined cardinality of multiple keys by merging their HyperLogLogs temporarily.
@@ -5157,7 +5158,7 @@ class CoreCommands(Protocol):
             When in Cluster mode, all `keys` must map to the same hash slot.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys of the HyperLogLog data structures to be analyzed.
+            keys (List[TEncodable]): The keys of the HyperLogLog data structures to be analyzed.
 
         Returns:
             int: The approximated cardinality of given HyperLogLog data structures.
@@ -5173,7 +5174,7 @@ class CoreCommands(Protocol):
         )
 
     async def pfmerge(
-        self, destination: Union[str, bytes], source_keys: List[Union[str, bytes]]
+        self, destination: TEncodable, source_keys: List[TEncodable]
     ) -> TOK:
         """
         Merges multiple HyperLogLog values into a unique value. If the destination variable exists, it is treated as one
@@ -5185,8 +5186,8 @@ class CoreCommands(Protocol):
             When in Cluster mode, all keys in `source_keys` and `destination` must map to the same hash slot.
 
         Args:
-            destination (Union[str, bytes]): The key of the destination HyperLogLog where the merged data sets will be stored.
-            source_keys (List[Union[str, bytes]]): The keys of the HyperLogLog structures to be merged.
+            destination (TEncodable): The key of the destination HyperLogLog where the merged data sets will be stored.
+            source_keys (List[TEncodable]): The keys of the HyperLogLog structures to be merged.
 
         Returns:
             OK: A simple OK response.
@@ -5207,7 +5208,7 @@ class CoreCommands(Protocol):
         )
 
     async def bitcount(
-        self, key: Union[str, bytes], options: Optional[OffsetOptions] = None
+        self, key: TEncodable, options: Optional[OffsetOptions] = None
     ) -> int:
         """
         Counts the number of set bits (population counting) in the string stored at `key`. The `options` argument can
@@ -5216,7 +5217,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bitcount for more details.
 
         Args:
-            key (Union[str, bytes]): The key for the string to count the set bits of.
+            key (TEncodable): The key for the string to count the set bits of.
             options (Optional[OffsetOptions]): The offset options.
 
         Returns:
@@ -5234,7 +5235,7 @@ class CoreCommands(Protocol):
             >>> await client.bitcount("my_key3", OffsetOptions(-1, -1, BitmapIndexType.BIT))
                 1  # Indicates that the last bit of the string stored at "my_key3" is set.
         """
-        args: List[Union[str, bytes]] = [key]
+        args: List[TEncodable] = [key]
         if options is not None:
             args.extend(options.to_args())
 
@@ -5243,7 +5244,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.BitCount, args),
         )
 
-    async def setbit(self, key: Union[str, bytes], offset: int, value: int) -> int:
+    async def setbit(self, key: TEncodable, offset: int, value: int) -> int:
         """
         Sets or clears the bit at `offset` in the string value stored at `key`. The `offset` is a zero-based index,
         with `0` being the first element of the list, `1` being the next element, and so on. The `offset` must be less
@@ -5253,7 +5254,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/setbit for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             offset (int): The index of the bit to be set.
             value (int): The bit value to set at `offset`. The value must be `0` or `1`.
 
@@ -5271,7 +5272,7 @@ class CoreCommands(Protocol):
             ),
         )
 
-    async def getbit(self, key: Union[str, bytes], offset: int) -> int:
+    async def getbit(self, key: TEncodable, offset: int) -> int:
         """
         Returns the bit value at `offset` in the string value stored at `key`.
         `offset` should be greater than or equal to zero.
@@ -5279,7 +5280,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/getbit for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             offset (int): The index of the bit to return.
 
         Returns:
@@ -5296,7 +5297,7 @@ class CoreCommands(Protocol):
         )
 
     async def bitpos(
-        self, key: Union[str, bytes], bit: int, start: Optional[int] = None
+        self, key: TEncodable, bit: int, start: Optional[int] = None
     ) -> int:
         """
         Returns the position of the first bit matching the given `bit` value. The optional starting offset
@@ -5307,7 +5308,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bitpos for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             bit (int): The bit value to match. Must be `0` or `1`.
             start (Optional[int]): The starting offset.
 
@@ -5330,7 +5331,7 @@ class CoreCommands(Protocol):
 
     async def bitpos_interval(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         bit: int,
         start: int,
         end: int,
@@ -5350,7 +5351,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bitpos for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             bit (int): The bit value to match. Must be `0` or `1`.
             start (int): The starting offset.
             end (int): The ending offset.
@@ -5382,8 +5383,8 @@ class CoreCommands(Protocol):
     async def bitop(
         self,
         operation: BitwiseOperation,
-        destination: Union[str, bytes],
-        keys: List[Union[str, bytes]],
+        destination: TEncodable,
+        keys: List[TEncodable],
     ) -> int:
         """
         Perform a bitwise operation between multiple keys (containing string values) and store the result in the
@@ -5396,8 +5397,8 @@ class CoreCommands(Protocol):
 
         Args:
             operation (BitwiseOperation): The bitwise operation to perform.
-            destination (Union[str, bytes]): The key that will store the resulting string.
-            keys (List[Union[str, bytes]]): The list of keys to perform the bitwise operation on.
+            destination (TEncodable): The key that will store the resulting string.
+            keys (List[TEncodable]): The list of keys to perform the bitwise operation on.
 
         Returns:
             int: The size of the string stored in `destination`.
@@ -5418,7 +5419,7 @@ class CoreCommands(Protocol):
         )
 
     async def bitfield(
-        self, key: Union[str, bytes], subcommands: List[BitFieldSubCommands]
+        self, key: TEncodable, subcommands: List[BitFieldSubCommands]
     ) -> List[Optional[int]]:
         """
         Reads or modifies the array of bits representing the string that is held at `key` based on the specified
@@ -5427,7 +5428,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bitfield for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             subcommands (List[BitFieldSubCommands]): The subcommands to be performed on the binary value of the string
                 at `key`, which could be any of the following:
                     - `BitFieldGet`
@@ -5456,7 +5457,7 @@ class CoreCommands(Protocol):
         )
 
     async def bitfield_read_only(
-        self, key: Union[str, bytes], subcommands: List[BitFieldGet]
+        self, key: TEncodable, subcommands: List[BitFieldGet]
     ) -> List[int]:
         """
         Reads the array of bits representing the string that is held at `key` based on the specified `subcommands`.
@@ -5464,7 +5465,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/bitfield_ro for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the string.
+            key (TEncodable): The key of the string.
             subcommands (List[BitFieldGet]): The "GET" subcommands to be performed.
 
         Returns:
@@ -5483,14 +5484,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.BitFieldReadOnly, args),
         )
 
-    async def object_encoding(self, key: Union[str, bytes]) -> Optional[str]:
+    async def object_encoding(self, key: TEncodable) -> Optional[str]:
         """
         Returns the internal encoding for the Redis object stored at `key`.
 
         See https://valkey.io/commands/object-encoding for more details.
 
         Args:
-            key (Union[str, bytes]): The `key` of the object to get the internal encoding of.
+            key (TEncodable): The `key` of the object to get the internal encoding of.
 
         Returns:
             Optional[str]: If `key` exists, returns the internal encoding of the object stored at
@@ -5505,14 +5506,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ObjectEncoding, [key]),
         )
 
-    async def object_freq(self, key: Union[str, bytes]) -> Optional[int]:
+    async def object_freq(self, key: TEncodable) -> Optional[int]:
         """
         Returns the logarithmic access frequency counter of a Redis object stored at `key`.
 
         See https://valkey.io/commands/object-freq for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the object to get the logarithmic access frequency counter of.
+            key (TEncodable): The key of the object to get the logarithmic access frequency counter of.
 
         Returns:
             Optional[int]: If `key` exists, returns the logarithmic access frequency counter of the object stored at `key` as an
@@ -5527,14 +5528,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ObjectFreq, [key]),
         )
 
-    async def object_idletime(self, key: Union[str, bytes]) -> Optional[int]:
+    async def object_idletime(self, key: TEncodable) -> Optional[int]:
         """
         Returns the time in seconds since the last access to the value stored at `key`.
 
         See https://valkey.io/commands/object-idletime for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the object to get the idle time of.
+            key (TEncodable): The key of the object to get the idle time of.
 
         Returns:
             Optional[int]: If `key` exists, returns the idle time in seconds. Otherwise, returns None.
@@ -5548,14 +5549,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ObjectIdleTime, [key]),
         )
 
-    async def object_refcount(self, key: Union[str, bytes]) -> Optional[int]:
+    async def object_refcount(self, key: TEncodable) -> Optional[int]:
         """
         Returns the reference count of the object stored at `key`.
 
         See https://valkey.io/commands/object-refcount for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the object to get the reference count of.
+            key (TEncodable): The key of the object to get the reference count of.
 
         Returns:
             Optional[int]: If `key` exists, returns the reference count of the object stored at `key` as an integer.
@@ -5570,14 +5571,14 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.ObjectRefCount, [key]),
         )
 
-    async def srandmember(self, key: Union[str, bytes]) -> Optional[bytes]:
+    async def srandmember(self, key: TEncodable) -> Optional[bytes]:
         """
         Returns a random element from the set value stored at 'key'.
 
         See https://valkey.io/commands/srandmember for more details.
 
         Args:
-            key (Union[str, bytes]): The key from which to retrieve the set member.
+            key (TEncodable): The key from which to retrieve the set member.
 
         Returns:
             Optional[bytes]: A random element from the set, or None if 'key' does not exist.
@@ -5595,7 +5596,7 @@ class CoreCommands(Protocol):
         )
 
     async def srandmember_count(
-        self, key: Union[str, bytes], count: int
+        self, key: TEncodable, count: int
     ) -> List[bytes]:
         """
         Returns one or more random elements from the set value stored at 'key'.
@@ -5603,7 +5604,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/srandmember for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
+            key (TEncodable): The key of the sorted set.
             count (int): The number of members to return.
                 If `count` is positive, returns unique members.
                 If `count` is negative, allows for duplicates members.
@@ -5626,7 +5627,7 @@ class CoreCommands(Protocol):
 
     async def getex(
         self,
-        key: Union[str, bytes],
+        key: TEncodable,
         expiry: Optional[ExpiryGetEx] = None,
     ) -> Optional[bytes]:
         """
@@ -5634,7 +5635,7 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/getex for more details.
 
         Args:
-            key (Union[str, bytes]): The key to get.
+            key (TEncodable): The key to get.
             expiry (Optional[ExpiryGetEx], optional): set expiriation to the given key.
                 Equivalent to [`EX` | `PX` | `EXAT` | `PXAT` | `PERSIST`] in the Redis API.
 
@@ -5666,9 +5667,9 @@ class CoreCommands(Protocol):
 
     async def sscan(
         self,
-        key: Union[str, bytes],
-        cursor: Union[str, bytes],
-        match: Optional[Union[str, bytes]] = None,
+        key: TEncodable,
+        cursor: TEncodable,
+        match: Optional[TEncodable] = None,
         count: Optional[int] = None,
     ) -> List[Union[bytes, List[bytes]]]:
         """
@@ -5677,10 +5678,10 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/sscan for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the set.
-            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (TEncodable): The key of the set.
+            cursor (TEncodable): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
-            match (Optional[Union[str, bytes]]): The match filter is applied to the result of the command and will only include
+            match (Optional[TEncodable]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the set is large enough for scan commands to return only a
                 subset of the set then there could be a case where the result is empty although there are items that
                 match the pattern specified. This is due to the default `COUNT` being `10` which indicates that it will
@@ -5713,7 +5714,7 @@ class CoreCommands(Protocol):
             Cursor: 0
             Members: [b'47', b'122', b'1', b'53', b'10', b'14', b'80']
         """
-        args: List[Union[str, bytes]] = [key, cursor]
+        args: List[TEncodable] = [key, cursor]
         if match is not None:
             args.extend(["MATCH", match])
         if count is not None:
@@ -5726,9 +5727,9 @@ class CoreCommands(Protocol):
 
     async def zscan(
         self,
-        key: Union[str, bytes],
-        cursor: Union[str, bytes],
-        match: Optional[Union[str, bytes]] = None,
+        key: TEncodable,
+        cursor: TEncodable,
+        match: Optional[TEncodable] = None,
         count: Optional[int] = None,
     ) -> List[Union[bytes, List[bytes]]]:
         """
@@ -5737,10 +5738,10 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/zscan for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the sorted set.
-            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (TEncodable): The key of the sorted set.
+            cursor (TEncodable): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
-            match (Optional[Union[str, bytes]]): The match filter is applied to the result of the command and will only include
+            match (Optional[TEncodable]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the sorted set is large enough for scan commands to return
                 only a subset of the sorted set then there could be a case where the result is empty although there are
                 items that match the pattern specified. This is due to the default `COUNT` being `10` which indicates
@@ -5774,7 +5775,7 @@ class CoreCommands(Protocol):
             Cursor: 0
             Members: [b'value 55', b'55', b'value 24', b'24', b'value 90', b'90', b'value 113', b'113']
         """
-        args: List[Union[str, bytes]] = [key, cursor]
+        args: List[TEncodable] = [key, cursor]
         if match is not None:
             args += ["MATCH", match]
         if count is not None:
@@ -5787,9 +5788,9 @@ class CoreCommands(Protocol):
 
     async def hscan(
         self,
-        key: Union[str, bytes],
-        cursor: Union[str, bytes],
-        match: Optional[Union[str, bytes]] = None,
+        key: TEncodable,
+        cursor: TEncodable,
+        match: Optional[TEncodable] = None,
         count: Optional[int] = None,
     ) -> List[Union[bytes, List[bytes]]]:
         """
@@ -5798,10 +5799,10 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/hscan for more details.
 
         Args:
-            key (Union[str, bytes]): The key of the set.
-            cursor (Union[str, bytes]): The cursor that points to the next iteration of results. A value of "0" indicates the start of
+            key (TEncodable): The key of the set.
+            cursor (TEncodable): The cursor that points to the next iteration of results. A value of "0" indicates the start of
                 the search.
-            match (Optional[Union[str, bytes]]): The match filter is applied to the result of the command and will only include
+            match (Optional[TEncodable]): The match filter is applied to the result of the command and will only include
                 strings that match the pattern specified. If the hash is large enough for scan commands to return only a
                 subset of the hash then there could be a case where the result is empty although there are items that
                 match the pattern specified. This is due to the default `COUNT` being `10` which indicates that it will
@@ -5835,7 +5836,7 @@ class CoreCommands(Protocol):
             Cursor: 0
             Members: [b'field 420', b'value 420', b'field 221', b'value 221']
         """
-        args: List[Union[str, bytes]] = [key, cursor]
+        args: List[TEncodable] = [key, cursor]
         if match is not None:
             args += ["MATCH", match]
         if count is not None:
@@ -5848,9 +5849,9 @@ class CoreCommands(Protocol):
 
     async def fcall_ro(
         self,
-        function: Union[str, bytes],
-        keys: Optional[List[Union[str, bytes]]] = None,
-        arguments: Optional[List[Union[str, bytes]]] = None,
+        function: TEncodable,
+        keys: Optional[List[TEncodable]] = None,
+        arguments: Optional[List[TEncodable]] = None,
     ) -> TResult:
         """
         Invokes a previously loaded read-only function.
@@ -5860,11 +5861,11 @@ class CoreCommands(Protocol):
         When in cluster mode, all keys in `keys` must map to the same hash slot.
 
         Args:
-            function (Union[str, bytes]): The function name.
-            keys (List[Union[str, bytes]]): An `array` of keys accessed by the function. To ensure the correct
+            function (TEncodable): The function name.
+            keys (List[TEncodable]): An `array` of keys accessed by the function. To ensure the correct
                 execution of functions, all names of keys that a function accesses must be
                 explicitly provided as `keys`.
-            arguments (List[Union[str, bytes]]): An `array` of `function` arguments. `arguments` should not
+            arguments (List[TEncodable]): An `array` of `function` arguments. `arguments` should not
                 represent names of keys.
 
         Returns:
@@ -5877,7 +5878,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 7.0.0.
         """
-        args: List[Union[str, bytes]] = []
+        args: List[TEncodable] = []
         if keys is not None:
             args.extend([function, str(len(keys))] + keys)
         else:
@@ -5889,7 +5890,7 @@ class CoreCommands(Protocol):
             await self._execute_command(RequestType.FCallReadOnly, args),
         )
 
-    async def watch(self, keys: List[Union[str, bytes]]) -> TOK:
+    async def watch(self, keys: List[TEncodable]) -> TOK:
         """
         Marks the given keys to be watched for conditional execution of a transaction. Transactions
         will only execute commands if the watched keys are not modified before execution of the
@@ -5901,7 +5902,7 @@ class CoreCommands(Protocol):
             When in cluster mode, the command may route to multiple nodes when `keys` map to different hash slots.
 
         Args:
-            keys (List[Union[str, bytes]]): The keys to watch.
+            keys (List[TEncodable]): The keys to watch.
 
         Returns:
             TOK: A simple "OK" response.
@@ -5978,8 +5979,8 @@ class CoreCommands(Protocol):
 
     async def lcs(
         self,
-        key1: Union[str, bytes],
-        key2: Union[str, bytes],
+        key1: TEncodable,
+        key2: TEncodable,
     ) -> bytes:
         """
         Returns the longest common subsequence between strings stored at key1 and key2.
@@ -5993,8 +5994,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (Union[str, bytes]): The key that stores the first string.
-            key2 (Union[str, bytes]): The key that stores the second string.
+            key1 (TEncodable): The key that stores the first string.
+            key2 (TEncodable): The key that stores the second string.
 
         Returns:
             A Bytes String containing the longest common subsequence between the 2 strings.
@@ -6008,7 +6009,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 7.0.0.
         """
-        args: List[Union[str, bytes]] = [key1, key2]
+        args: List[TEncodable] = [key1, key2]
 
         return cast(
             bytes,
@@ -6017,8 +6018,8 @@ class CoreCommands(Protocol):
 
     async def lcs_len(
         self,
-        key1: Union[str, bytes],
-        key2: Union[str, bytes],
+        key1: TEncodable,
+        key2: TEncodable,
     ) -> int:
         """
         Returns the length of the longest common subsequence between strings stored at key1 and key2.
@@ -6032,8 +6033,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (Union[str, bytes]): The key that stores the first string.
-            key2 (Union[str, bytes]): The key that stores the second string.
+            key1 (TEncodable): The key that stores the first string.
+            key2 (TEncodable): The key that stores the second string.
 
         Returns:
             The length of the longest common subsequence between the 2 strings.
@@ -6046,7 +6047,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 7.0.0.
         """
-        args: List[Union[str, bytes]] = [key1, key2, "LEN"]
+        args: List[TEncodable] = [key1, key2, "LEN"]
 
         return cast(
             int,
@@ -6055,8 +6056,8 @@ class CoreCommands(Protocol):
 
     async def lcs_idx(
         self,
-        key1: Union[str, bytes],
-        key2: Union[str, bytes],
+        key1: TEncodable,
+        key2: TEncodable,
         min_match_len: Optional[int] = None,
         with_match_len: Optional[bool] = False,
     ) -> Mapping[bytes, Union[list[list[Union[list[int], int]]], int]]:
@@ -6072,8 +6073,8 @@ class CoreCommands(Protocol):
         See https://valkey.io/commands/lcs for more details.
 
         Args:
-            key1 (Union[str, bytes]): The key that stores the first string.
-            key2 (Union[str, bytes]): The key that stores the second string.
+            key1 (TEncodable): The key that stores the first string.
+            key2 (TEncodable): The key that stores the second string.
             min_match_len (Optional[int]): The minimum length of matches to include in the result.
             with_match_len (Optional[bool]): If True, include the length of the substring matched for each substring.
 
@@ -6133,7 +6134,7 @@ class CoreCommands(Protocol):
 
         Since: Redis version 7.0.0.
         """
-        args: List[Union[str, bytes]] = [key1, key2, "IDX"]
+        args: List[TEncodable] = [key1, key2, "IDX"]
 
         if min_match_len is not None:
             args.extend(["MINMATCHLEN", str(min_match_len)])
