@@ -2,13 +2,18 @@ use crate::cluster_async::ConnectionFuture;
 use crate::cluster_routing::{Route, ShardAddrs, SlotAddr};
 use crate::cluster_slotmap::{ReadFromReplicaStrategy, SlotMap, SlotMapValue};
 use crate::cluster_topology::TopologyHash;
+use crate::RedisResult;
 use dashmap::DashMap;
 use futures::FutureExt;
 use rand::seq::IteratorRandom;
+use tokio::task::JoinHandle;
 use std::net::IpAddr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use telemetrylib::Telemetry;
+
+use tokio::sync::oneshot;
+use futures::future::Shared;
 
 /// Count the number of connections in a connections_map object
 macro_rules! count_connections {
@@ -121,6 +126,11 @@ pub(crate) enum ConnectionType {
 
 pub(crate) struct ConnectionsMap<Connection>(pub(crate) DashMap<String, ClusterNode<Connection>>);
 
+pub(crate) struct RefreshState {
+    pub handle: JoinHandle<()>,
+    pub rx: Shared<oneshot::Receiver<Arc<RedisResult<()>>>>,
+}
+
 impl<Connection> std::fmt::Display for ConnectionsMap<Connection> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for item in self.0.iter() {
@@ -139,6 +149,9 @@ pub(crate) struct ConnectionsContainer<Connection> {
     pub(crate) slot_map: SlotMap,
     read_from_replica_strategy: ReadFromReplicaStrategy,
     topology_hash: TopologyHash,
+
+    // Follow the refresh ops on the connections
+    pub(crate) refresh_operations: DashMap<String, RefreshState>,
 }
 
 impl<Connection> Drop for ConnectionsContainer<Connection> {
@@ -155,6 +168,7 @@ impl<Connection> Default for ConnectionsContainer<Connection> {
             slot_map: Default::default(),
             read_from_replica_strategy: ReadFromReplicaStrategy::AlwaysFromPrimary,
             topology_hash: 0,
+            refresh_operations: DashMap::new(),
         }
     }
 }
@@ -182,6 +196,7 @@ where
             slot_map,
             read_from_replica_strategy,
             topology_hash,
+            refresh_operations: DashMap::new(),
         }
     }
 
