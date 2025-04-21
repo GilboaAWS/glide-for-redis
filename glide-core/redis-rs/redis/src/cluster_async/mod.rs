@@ -90,7 +90,7 @@ use std::time::Duration;
 #[cfg(feature = "tokio-comp")]
 use async_trait::async_trait;
 #[cfg(feature = "tokio-comp")]
-use tokio_retry2::strategy::{jitter_range, ExponentialFactorBackoff};
+use tokio_retry2::strategy::{jitter_range, ExponentialBackoff, ExponentialFactorBackoff};
 #[cfg(feature = "tokio-comp")]
 use tokio_retry2::{Retry, RetryError};
 
@@ -1455,24 +1455,70 @@ where
                     address_clone_for_task
                 );
 
-                let mut cluster_params = inner_clone
-                    .cluster_params
-                    .read()
-                    .expect(MUTEX_READ_ERR)
-                    .clone();
-                let subs_guard = inner_clone.subscriptions_by_address.read().await;
-                cluster_params.pubsub_subscriptions =
-                    subs_guard.get(&address_clone_for_task).cloned();
-                drop(subs_guard);
+                // An exponential backoff strategy that:
+                // 1) Starts from `current = 2`.
+                // 2) Each iteration returns `current * factor = 2 * 100 = 200 ms` on the first,
+                //    then `4 * 100 = 400 ms`, `8 * 100 = 800 ms`, etc.
+                // 3) After returning that duration, `current` is multiplied by the base (`current *= base`).
+                //    So on each subsequent iteration, `current` doubles (2 → 4 → 8 → 16…).
+                // 4) We apply ±10% jitter to each returned duration (using `jitter_range(0.9, 1.1)`).
+                // 5) The `.take(10)` limits it to 10 attempts.
+                let backoff_strategy = ExponentialBackoff::from_millis(2)
+                .factor(100)
+                .map(jitter_range(0.8, 1.2))
+                .take(15);
 
-                let node_result = get_or_create_conn(
-                    &address_clone_for_task,
-                    node_option,
-                    &cluster_params,
-                    conn_type,
-                    inner_clone.glide_connection_options.clone(),
-                )
-                .await;
+                let mut node_result = Err(RedisError::from((
+                    ErrorKind::ClientError,
+                    "No attempts performed",
+                )));
+                let mut first_attempt = true;
+                for backoff_duration in backoff_strategy {
+                    let mut cluster_params = inner_clone
+                        .cluster_params
+                        .read()
+                        .expect(MUTEX_READ_ERR)
+                        .clone();
+                    let subs_guard = inner_clone.subscriptions_by_address.read().await;
+                    cluster_params.pubsub_subscriptions =
+                        subs_guard.get(&address_clone_for_task).cloned();
+                    drop(subs_guard);
+
+                    node_result = get_or_create_conn(
+                        &address_clone_for_task,
+                        node_option.clone(),
+                        &cluster_params,
+                        conn_type,
+                        inner_clone.glide_connection_options.clone(),
+                    )
+                    .await;
+
+                    match node_result {
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(ref err) => {
+                            if first_attempt == true {
+                                if let Some(ref mut conn_state) = inner_clone
+                                    .conn_lock
+                                    .write()
+                                    .expect(MUTEX_WRITE_ERR)
+                                    .refresh_conn_state
+                                    .refresh_address_in_progress
+                                    .get_mut(&address_clone_for_task) {
+                                        conn_state.status.flip_status_to_too_long();
+                                    }
+
+                                first_attempt = false;
+                            }
+                            debug!(
+                                "Failed to refresh connection for node {}. Error: `{:?}`. Retrying in {:?}",
+                                address_clone_for_task, err, backoff_duration
+                            );
+                            tokio::time::sleep(backoff_duration).await;
+                        }
+                    }
+                }
 
                 match node_result {
                     Ok(node) => {
@@ -1494,10 +1540,6 @@ where
                     }
                 }
 
-                // Note!! - TODO
-                // Need to notify here the awaiting requests inorder to awake the context of the poll_flush as
-                // it awaits on this notifier inside the get_connection in the poll_next inside poll_complete.
-                // Otherwise poll_flush won't be polled until the next start_send or other requests I/O.
                 inner_clone
                     .conn_lock
                     .write()
